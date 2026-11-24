@@ -17,7 +17,8 @@ export function reportReplacedAutomationRunOwner(t: Translate): void {
     t(
       'auto.components.automations.AutomationsPage.ownerChanged',
       'Automation moved hosts. Refresh to retry.'
-    )
+    ),
+    { classNames: { title: 'max-sm:text-xs' } }
   )
 }
 
