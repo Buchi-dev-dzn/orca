@@ -1,4 +1,4 @@
-// One "Connect Linear" / "Connect GitHub" trip per host and source, as every setup surface sees it.
+// One "Connect Linear" / "Connect GitHub" / Sign in with Slack trip per host and source, as every setup surface sees it.
 // The host runs the trip as its own Orca account; this window opens its page where the host's
 // return reaches (a server's own page in Orca's browser) and waits on the host for its end.
 import { useEffect, useSyncExternalStore } from 'react'
@@ -16,7 +16,10 @@ import {
   BOT_SLACK_DESKTOP_ERRORS,
   type BotSlackResult
 } from '../../../shared/connector-bot-slack-contract'
-import type { ConnectorConnectSource } from '../../../shared/connectors/connector-cloud-contract'
+import {
+  CONNECTOR_CONNECT_SOURCES,
+  type ConnectorConnectSource
+} from '../../../shared/connectors/connector-cloud-contract'
 import {
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
@@ -77,10 +80,9 @@ function set(trip: Trip, next: ConnectorConnectView): void {
 }
 
 function refresh(hostId: ExecutionHostId, source: ConnectorConnectSource): Promise<unknown> {
-  return Promise.all([
-    source === 'linear' ? refreshBotLinear(hostId) : refreshBotGitHub(hostId),
-    refreshConnectorLinks(hostId)
-  ])
+  // Slack's sign-in changes only the links; its workspaces' setup is per bot.
+  const own = { linear: refreshBotLinear, github: refreshBotGitHub, slack: null }[source]
+  return Promise.all([own?.(hostId), refreshConnectorLinks(hostId)])
 }
 
 async function settle(
@@ -342,7 +344,7 @@ function watchSignedInAccount(): void {
       return
     }
     shownAccount = account
-    for (const source of ['linear', 'github'] as const) {
+    for (const source of CONNECTOR_CONNECT_SOURCES) {
       const trip = trips.get(tripKey(LOCAL_EXECUTION_HOST_ID, source))
       if (trip) {
         trip.latest++
