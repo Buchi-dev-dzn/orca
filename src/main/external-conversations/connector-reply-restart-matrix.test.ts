@@ -826,15 +826,15 @@ describe('an empty turn is asked once more, from its live end only', () => {
     expect([asks.length, p.outcomes().d2?.prose]).toEqual([0, 'Done.'])
   })
 
-  it('closes with one no answer at once when the ask is refused', async () => {
+  it('closes under one answer when the ask is refused, with words from before its tool', async () => {
     const p = asking('refused')
     admit(p.db, 'm1', asked('d1', ['d2']))
-    p.show([p.message('m1'), ...p.turn('item:t1', 'm1', 'completed')])
+    const said = p.turn('item:t1', 'm1', 'completed', 'Here it is.')
+    p.show([p.message('m1'), ...said.slice(0, 1), tool('item:t1', 60), ...said.slice(1)])
     await p.fillTurn({ ...solo, stamps: [{ ...stampOf('d1'), carried: ['d2'] }], ...end('m1') })
     await p.publish()
-    expect(asks).toHaveLength(1)
-    const closed = { outcome: 'no_answer', head: 'd1' }
-    expect(p.outcomes()).toEqual({ d1: closed, d2: closed })
+    const closed = { outcome: 'answered', prose: 'Here it is.', head: 'd1' }
+    expect([asks.length, p.outcomes()]).toEqual([1, { d1: closed, d2: closed }])
   })
 })
 

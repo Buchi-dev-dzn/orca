@@ -21,6 +21,9 @@ import {
 } from '../../shared/agent-session/lifecycle/records/agent-session-turn-record'
 import type { ConnectorFailure } from '../../shared/connectors/connector-cloud-contract'
 import type { ReplyRecoveryChat } from './external-conversation-reply-recovery'
+import { structuredAgentSessionTurnReply } from '../../shared/agent-session/requests/structured-agent-session-turn-reply'
+import { JOURNAL_CONNECTOR_REPLY_PROSE_BYTES } from '../../shared/agent-session/journal/journal-connector-reply'
+import { capAnswer } from '../connector-cloud/connector-snapshot'
 import { DISPATCH_DOUBT_PROVIDER_EXITED } from '../native-chat/agent-session-journal/projection/journal-dispatch-doubt-reasons'
 
 // What the journal proves about reply outbox rows (Phase 1): which cut a row is in, what its claim's
@@ -31,6 +34,7 @@ type Unfilled = JournalConnectorReplyRow
 export type ReplyRecoveryVerdict = {
   outcome: JournalConnectorReplyOutcome
   failure?: ConnectorFailure
+  prose?: string
 }
 
 // The machine lost track of the request across a restart: it may have finished (Phase 1 §1.8).
@@ -130,6 +134,7 @@ export async function readReplyEvidence(
     return snapshot.items.find((item) => item.itemId === opener)
   }
   const cutVerdicts = new Map<string, ReturnType<typeof turnVerdictOf>>()
+  const cutWords = new Map<string, string>()
   // A claimed row's end, read from the continuation that claimed it (Phase 1 §1.7); null waits.
   const claimVerdict = (claimMessageId: string): ReplyRecoveryVerdict | null => {
     const turn = turnOpenedBy(claimMessageId)
@@ -163,6 +168,14 @@ export async function readReplyEvidence(
         cutVerdicts.set(cutTurnId, row ? turnVerdictOf(row) : null)
       }
       return cutVerdicts.get(cutTurnId) ?? null
+    },
+    // A held turn's newest words, before its last tool: its answer once no retry runs.
+    cutTurnWords: (cutTurnId: string) => {
+      if (!cutWords.has(cutTurnId)) {
+        const { prose } = structuredAgentSessionTurnReply(snapshot.items, cutTurnId)
+        cutWords.set(cutTurnId, prose && capAnswer(prose, JOURNAL_CONNECTOR_REPLY_PROSE_BYTES))
+      }
+      return cutWords.get(cutTurnId) ?? ''
     },
     // Only turns that could have answered a row still unfilled.
     turns: () => {
@@ -263,9 +276,10 @@ export function rowVerdict(
       : null
   }
   // Held for an empty turn's retry that never claimed it (refused, or the app quit first): that
-  // turn finished, with nothing to say.
+  // turn finished, answered only by any words it wrote before its last tool.
   if (row.emptyRetried && row.cut && view.cutTurnVerdict(row.cut.turnId) === 'success') {
-    return { outcome: 'no_answer' }
+    const prose = view.cutTurnWords(row.cut.turnId)
+    return prose ? { outcome: 'answered', prose } : { outcome: 'no_answer' }
   }
   if (row.cut) {
     return settled ? { outcome: 'interrupted' } : null

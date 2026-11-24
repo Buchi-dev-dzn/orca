@@ -226,7 +226,9 @@ export class ConnectorReplyRecovery {
       return verdict ? [{ row, verdict }] : []
     })
     const heads = heldHeads(
-      fills.flatMap(({ row, verdict }) => (verdict.outcome === 'no_answer' ? [row] : [])),
+      fills.flatMap(({ row, verdict }) =>
+        verdict.outcome === 'no_answer' || verdict.prose ? [row] : []
+      ),
       snapshot.items
     )
     await journal.fillOutcomes(
@@ -236,7 +238,8 @@ export class ConnectorReplyRecovery {
         outcome: verdict.outcome,
         answerDeliveryId: heads.get(row) ?? row.deliveryId,
         ...expectOf(row),
-        ...(verdict.failure ? { failure: verdict.failure } : {})
+        ...(verdict.failure ? { failure: verdict.failure } : {}),
+        ...(verdict.prose ? { prose: verdict.prose } : {})
       }))
     )
     const owed = (await journal.read(sessionId)).filter((row) => !row.fill)
