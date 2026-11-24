@@ -13,7 +13,7 @@ import { useActiveClientHostedBrowserRowId } from '@/runtime/browser/client-host
 import { useEditorGroupFileDropOwner } from '../editor/file-drop/use-editor-group-file-drop-owner'
 import { useBotForWorkspace, useBotGroupForWorkspace } from '../bots/bot-workspace'
 import { useTranslate } from '@/i18n/use-translate'
-import { isBotHomeTab } from '../../../../shared/bots/bot-home-tab'
+import { findPinnedHomeTabId, stripSortableIdsWithoutPinnedHome } from './model/pinned-home-tab'
 
 function TabBarInner(props: TabBarProps): React.JSX.Element {
   const t = useTranslate()
@@ -77,18 +77,11 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
     worktreeId,
     firstItem?.type === 'agent-session' ? firstItem.data.executionHostId : undefined
   )
-  // Why only when first: a host that doesn't keep Home first leaves it in the strip where it sits.
-  const pinnedHomeId =
-    firstItem?.type === 'agent-session' && isBotHomeTab(firstItem.data, homeBot)
-      ? firstItem.id
-      : null
+  const pinnedHomeId = findPinnedHomeTabId(itemProjection.orderedItems, homeBot)
   // Why memoized: dnd-kit re-renders every tab in a context whose items array changes identity.
   const pinnedSortableIds = useMemo(() => (pinnedHomeId ? [pinnedHomeId] : []), [pinnedHomeId])
   const stripSortableIds = useMemo(
-    () =>
-      pinnedHomeId === null
-        ? itemProjection.sortableIds
-        : itemProjection.sortableIds.filter((id) => id !== pinnedHomeId),
+    () => stripSortableIdsWithoutPinnedHome(itemProjection.sortableIds, pinnedHomeId),
     [itemProjection.sortableIds, pinnedHomeId]
   )
   const togglePinned = (item: TabBarItem): void => {
