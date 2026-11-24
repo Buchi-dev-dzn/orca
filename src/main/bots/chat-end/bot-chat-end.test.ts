@@ -6,6 +6,7 @@ import {
   PEER_CHAT,
   WAIT,
   call,
+  openChat,
   coordinatorRunAndTask,
   db,
   host,
@@ -84,6 +85,14 @@ function sendAs(callerKey: string, sessionId: string, text: string) {
   )
 }
 
+function messageId(result: Record<string, unknown>): string {
+  const message = result.message
+  if (typeof message === 'object' && message !== null && 'id' in message) {
+    return String(message.id)
+  }
+  return expect.fail('no message in the send result')
+}
+
 const idleWork = {
   working: () => false,
   hasActionablePrompt: () => false,
@@ -138,21 +147,27 @@ describe('ending a bot side chat', () => {
   })
 
   it('keeps a chat while a plain question it sent, or one it read, waits for its answer', async () => {
+    // An ordinary chat outside the bot's home, so the mail is plain point-to-point.
+    const peerId = '2c8e4b1a-6d3f-4a9e-b7c2-9f1e3d5a7b60'
+    await openChat(peerId)
     await openBotChat(SIDE, 'background')
-    const PEER_ADDRESS = `${ORCA_SESSION_ADDRESS_PREFIX}${PEER_CHAT}`
-    const sent = await call(
-      'orchestration.send',
-      { to: PEER_ADDRESS, subject: 'Which branch?', type: 'question' },
-      { sessionId: SIDE }
+    const PEER = `${ORCA_SESSION_ADDRESS_PREFIX}${peerId}`
+    const sent = messageId(
+      await call(
+        'orchestration.send',
+        { to: PEER, subject: 'Which branch?', type: 'question' },
+        { sessionId: SIDE }
+      )
     )
     expect(await end()).toEqual({ outcome: 'kept', reasons: [{ kind: 'questions', count: 1 }] })
 
-    const asked = await call(
-      'orchestration.send',
-      { to: SIDE_ADDRESS, subject: 'Ready?', type: 'question' },
-      { sessionId: PEER_CHAT }
-    )
-    db.markAsRead([String((asked.message as { id: string }).id)])
+    const asked = db.insertMessage({
+      from: PEER,
+      to: SIDE_ADDRESS,
+      subject: 'Ready?',
+      type: 'question'
+    })
+    db.markAsRead([asked.id])
     expect(await end()).toEqual({
       outcome: 'kept',
       reasons: [
@@ -161,19 +176,16 @@ describe('ending a bot side chat', () => {
       ]
     })
 
-    // Both answered in their threads, and the answer read: nothing is owed.
-    await call(
-      'orchestration.reply',
-      { id: String((sent.message as { id: string }).id), body: 'main' },
-      { sessionId: PEER_CHAT }
-    )
-    const answer = await call(
-      'orchestration.reply',
-      { id: String((asked.message as { id: string }).id), body: 'yes' },
-      { sessionId: SIDE }
-    )
-    db.markAsRead(db.getUndeliveredUnreadMessages(SIDE_ADDRESS, undefined, {}).map((m) => m.id))
-    expect(answer).toBeDefined()
+    // Each answered in its thread by the other side, the answer read: nothing is owed.
+    await call('orchestration.reply', { id: asked.id, body: 'yes' }, { sessionId: SIDE })
+    const answer = db.insertMessage({
+      from: PEER,
+      to: SIDE_ADDRESS,
+      subject: 'Re: Which branch?',
+      body: 'main',
+      threadId: sent
+    })
+    db.markAsRead([answer.id])
     expect(await end()).toEqual({ outcome: 'ended', title: null })
   })
 

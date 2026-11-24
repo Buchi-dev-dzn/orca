@@ -127,4 +127,33 @@ describe('orchestration a side chat took part in', () => {
     expect(owes([{ automationId: 'auto-1', chatSessionId: OTHER }])).toEqual([])
     expect(owes([{ automationId: 'someone-else', chatSessionId: CHAT }])).toEqual([])
   })
+
+  it('keeps it while a plain question with no bot request waits for the other side, read or sent', () => {
+    const me = formatOrcaSessionAddress(CHAT)
+    const asked = db.insertMessage({
+      from: 'term_peer',
+      to: me,
+      subject: 'Ready?',
+      type: 'question'
+    })
+    db.markAsRead([asked.id])
+    const sent = db.insertMessage({
+      from: me,
+      to: 'term_peer',
+      subject: 'Which?',
+      type: 'question'
+    })
+    expect(owes()).toEqual([
+      { kind: 'requests', count: 1 },
+      { kind: 'questions', count: 1 }
+    ])
+
+    // Its own follow-up answers neither; the other side's replies in each thread answer both.
+    db.insertMessage({ from: me, to: 'term_peer', subject: 'Also', threadId: sent.id })
+    expect(owes()).toHaveLength(2)
+    db.insertMessage({ from: me, to: 'term_peer', subject: 'Re: Ready?', threadId: asked.id })
+    db.insertMessage({ from: 'term_peer', to: me, subject: 'Re: Which?', threadId: sent.id })
+    db.markAsRead(db.getUndeliveredUnreadMessages(me, undefined, {}).map((m) => m.id))
+    expect(owes()).toEqual([])
+  })
 })
