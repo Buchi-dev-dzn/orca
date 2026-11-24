@@ -164,6 +164,7 @@ function RunRecovery({
   const [editorOpen, setEditorOpen] = useState(false)
   const [workspaceOpened, setWorkspaceOpened] = useState(false)
   const bot = remote || olderHost ? remoteFixtureBot : fixtureBot
+  const hostLabel = olderHost ? 'Atlas' : remote ? 'Sample server' : 'This computer'
   const history: SelectedAutomationRunHistoryOutcome = {
     automationId: botAutomation.id,
     rowKey: null,
@@ -183,7 +184,7 @@ function RunRecovery({
         runs={[run]}
         history={history}
         relativeNow={NOW}
-        hostLabel={remote || olderHost ? 'Sample server' : 'This computer'}
+        hostLabel={hostLabel}
         workspaceName="Sample workspace"
         workspaceActionLabel="Open workspace"
         canRerun
@@ -197,7 +198,7 @@ function RunRecovery({
         onPickModel={async (option) => {
           if (olderHost) {
             showAutomationModelRecoveryResult({ status: 'unsupported' }, option.label, {
-              hostLabel: 'Sample server'
+              hostLabel
             })
             return
           }
