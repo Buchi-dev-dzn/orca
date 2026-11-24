@@ -81,26 +81,43 @@ function openQuestions(db: OrchestrationDb, ids: readonly string[], addresses: r
   }
 }
 
-/** Point-to-point questions with no bot request behind them that the other side never answered in
- *  their thread: read ones to the chat (unread ones count as unread), and ones it sent. */
+/**
+ * Point-to-point questions with no bot request behind them that the other side has not answered
+ * since: read ones to the chat (unread ones count as unread), and ones it sent. An answer is any
+ * later message (by `sequence`), not itself a question, from the answering side: in the question's
+ * thread, or a new unthreaded message straight back between the two. Any address of the chat's
+ * lineage answers for it. A recipient that never answers holds the chat until it does: an age
+ * limit would end it while an answer can still arrive, and the guard would refuse that answer.
+ */
 function plainQuestions(db: OrchestrationDb, addresses: readonly string[]) {
   const a = placeholders(addresses)
-  const open = (column: 'to_handle' | 'from_handle', extra: string, answerer: string) =>
+  const unanswered = (asker: 'to_handle' | 'from_handle', extra: string, answered: string) =>
     count(
       db,
       `SELECT COUNT(*) AS n FROM messages m
-       WHERE m.${column} IN (${a}) ${extra} AND m.type = 'question'
+       WHERE m.${asker} IN (${a}) ${extra} AND m.type = 'question'
          AND NOT EXISTS (SELECT 1 FROM bot_requests r WHERE r.message_id = m.id)
          AND NOT EXISTS (
            SELECT 1 FROM messages x
-            WHERE x.thread_id = COALESCE(m.thread_id, m.id) AND x.id <> m.id
-              AND x.from_handle = ${answerer}
+            WHERE x.sequence > m.sequence AND x.type <> 'question' AND ${answered}
          )`,
-      addresses
+      [...addresses, ...addresses]
     )
+  const inThread = 'x.thread_id = COALESCE(m.thread_id, m.id)'
+  const unthreaded = 'x.thread_id IS NULL'
   return {
-    askedOf: open('to_handle', 'AND m.read = 1', 'm.to_handle'),
-    askedBy: open('from_handle', "AND m.type <> 'heartbeat'", 'm.to_handle')
+    // Asked of the chat: answered by any of its addresses, in the thread or back to the asker.
+    askedOf: unanswered(
+      'to_handle',
+      'AND m.read = 1',
+      `x.from_handle IN (${a}) AND (${inThread} OR (${unthreaded} AND x.to_handle = m.from_handle))`
+    ),
+    // Asked by the chat: answered by the one it asked, in the thread or back to any of its addresses.
+    askedBy: unanswered(
+      'from_handle',
+      "AND m.type <> 'heartbeat'",
+      `x.from_handle = m.to_handle AND (${inThread} OR (${unthreaded} AND x.to_handle IN (${a})))`
+    )
   }
 }
 

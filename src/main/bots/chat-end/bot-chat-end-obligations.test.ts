@@ -14,11 +14,17 @@ const CHAT: OrcaSessionId = isOrcaSessionId(CHAT_ID)
   ? CHAT_ID
   : expect.fail('not an Orca session id')
 const OTHER = '00000000-0000-4000-8000-0000000000c2'
+/** The chat's /clear predecessor: the same lineage, another address. */
+const EARLIER_ID = '00000000-0000-4000-8000-0000000000c0'
+const EARLIER: OrcaSessionId = isOrcaSessionId(EARLIER_ID)
+  ? EARLIER_ID
+  : expect.fail('not an Orca session id')
 
 let db: OrchestrationDb
 
 function owes(
-  activeRuns: { automationId: string; chatSessionId: string | null }[] = []
+  activeRuns: { automationId: string; chatSessionId: string | null }[] = [],
+  lineage: readonly string[] = [CHAT]
 ): ReturnType<typeof botChatEndObligations> {
   const automations = [
     {
@@ -35,7 +41,7 @@ function owes(
       deliveryPending: () => false
     },
     'bot-1',
-    [CHAT]
+    lineage
   )
 }
 
@@ -165,5 +171,61 @@ describe('orchestration a side chat took part in', () => {
     db.insertMessage({ from: 'term_peer', to: me, subject: 'Re: Which?', threadId: sent.id })
     db.markAsRead(db.getUndeliveredUnreadMessages(me, undefined, {}).map((m) => m.id))
     expect(owes()).toEqual([])
+  })
+
+  it('takes only a later message as the answer, so an earlier reply in the thread answers nothing', () => {
+    const me = formatOrcaSessionAddress(CHAT)
+    const root = db.insertMessage({ from: me, to: 'term_peer', subject: 'Plan' })
+    // The peer replied earlier; then the chat asks in the same thread.
+    db.insertMessage({ from: 'term_peer', to: me, subject: 'Re: Plan', threadId: root.id })
+    db.markAsRead(db.getUndeliveredUnreadMessages(me, undefined, {}).map((m) => m.id))
+    db.insertMessage({
+      from: me,
+      to: 'term_peer',
+      subject: 'Which day?',
+      type: 'question',
+      threadId: root.id
+    })
+    // The chat replied earlier; then the peer asks in the same thread.
+    const asked = db.insertMessage({
+      from: 'term_peer',
+      to: me,
+      subject: 'Ready?',
+      type: 'question',
+      threadId: root.id
+    })
+    db.markAsRead([asked.id])
+    expect(owes()).toEqual([
+      { kind: 'requests', count: 1 },
+      { kind: 'questions', count: 1 }
+    ])
+
+    db.insertMessage({ from: me, to: 'term_peer', subject: 'Yes', threadId: root.id })
+    db.insertMessage({ from: 'term_peer', to: me, subject: 'Friday', threadId: root.id })
+    db.markAsRead(db.getUndeliveredUnreadMessages(me, undefined, {}).map((m) => m.id))
+    expect(owes()).toEqual([])
+  })
+
+  it('takes a new unthreaded message straight back, from any address of the chat, as the answer', () => {
+    const me = formatOrcaSessionAddress(CHAT)
+    const earlier = formatOrcaSessionAddress(EARLIER)
+    const asked = db.insertMessage({
+      from: 'term_peer',
+      to: earlier,
+      subject: 'Ready?',
+      type: 'question'
+    })
+    db.markAsRead([asked.id])
+    db.insertMessage({ from: me, to: 'term_peer', subject: 'Which?', type: 'question' })
+    expect(owes([], [EARLIER, CHAT])).toEqual([
+      { kind: 'requests', count: 1 },
+      { kind: 'questions', count: 1 }
+    ])
+
+    // The live chat answers its predecessor's question; the peer answers to the predecessor.
+    db.insertMessage({ from: me, to: 'term_peer', subject: 'Yes' })
+    const back = db.insertMessage({ from: 'term_peer', to: earlier, subject: 'That one' })
+    db.markAsRead([back.id])
+    expect(owes([], [EARLIER, CHAT])).toEqual([])
   })
 })
