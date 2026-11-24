@@ -109,6 +109,7 @@ export class RelayedProviderOutput {
     if (event === 'relayKept') {
       if (this.wantsKeptLines) {
         this.keptLines.set(seq, line)
+        this.preambleArrived?.()
       }
       return
     }
