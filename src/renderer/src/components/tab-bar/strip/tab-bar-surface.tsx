@@ -1,4 +1,5 @@
 import React from 'react'
+import { SortableContext } from '@dnd-kit/sortable'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { Translate } from '@/i18n/use-translate'
@@ -43,6 +44,8 @@ export function renderTabBarSurface(
     runtime,
     createMenu,
     itemProjection,
+    pinnedSortableIds,
+    stripSortableIds,
     tabStripNavigation,
     tabStripDragScroll,
     activeClientHostedBrowserRowId,
@@ -55,6 +58,10 @@ export function renderTabBarSurface(
     runtime: TabBarRuntimeModel
     createMenu: TabBarCreateMenuController
     itemProjection: TabBarItemProjection
+    /** A bot's Home when it leads the order; it sits outside the scroller so it never scrolls away. */
+    pinnedSortableIds: string[]
+    /** The scroller's sortable ids: every tab but the pinned Home. */
+    stripSortableIds: string[]
     tabStripNavigation: ReturnType<typeof useTabStripOverflowNavigation>
     tabStripDragScroll: ReturnType<typeof useTabStripDragScrollHandlers>
     activeClientHostedBrowserRowId: string | null
@@ -102,7 +109,7 @@ export function renderTabBarSurface(
     queueFocusAfterNewTabMenuClose,
     showStaticCreateMenuItems
   } = createMenu
-  const { orderedItems, dropIndicatorByVisibleId, sortableIds, activeVisibleTabId } = itemProjection
+  const { orderedItems, dropIndicatorByVisibleId, activeVisibleTabId } = itemProjection
   const clientHostedBrowserRows = props.clientHostedBrowserRows ?? EMPTY_CLIENT_HOSTED_ROWS
   const {
     tabStripRef,
@@ -113,7 +120,11 @@ export function renderTabBarSurface(
   } = tabStripNavigation
   const singleTab = orderedItems.length + clientHostedBrowserRows.length === 1
   const includeTopTabBorder = tabStripChrome !== 'floating-panel'
-  const renderItems = (segments: readonly TabStripSegment[]): React.ReactNode[] =>
+  const pinnedCount = pinnedSortableIds.length
+  const renderItems = (
+    segments: readonly TabStripSegment[],
+    itemOffset: number
+  ): React.ReactNode[] =>
     renderTabBarItems({
       items: orderedItems,
       props,
@@ -122,12 +133,29 @@ export function renderTabBarSurface(
       dropIndicatorByVisibleId,
       includeTopTabBorder,
       activeClientHostedBrowserRowId,
-      segments
+      segments,
+      itemOffset
     })
 
   const hasTabs = orderedItems.length + clientHostedBrowserRows.length > 0
+  const stripHasTabs = orderedItems.length + clientHostedBrowserRows.length > pinnedCount
   return (
     <div ref={surfaceRef} className="flex items-stretch h-full overflow-hidden flex-1 min-w-0">
+      {pinnedCount > 0 ? (
+        // Its own context: the strip's windowed list leaves Home out, and Home still takes drops after it.
+        <SortableContext items={pinnedSortableIds}>
+          <div
+            data-single-tab={singleTab ? '' : undefined}
+            data-pinned-home-slot=""
+            className="group/tab-strip flex min-h-0 flex-none"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          >
+            <TabStripTooltipProvider>
+              {renderItems([{ kind: 'tabs', start: 0, end: pinnedCount }], 0)}
+            </TabStripTooltipProvider>
+          </div>
+        </SortableContext>
+      ) : null}
       {tabStripOverflowState.hasOverflow ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -157,7 +185,7 @@ export function renderTabBarSurface(
       <WindowedTabStrip
         stripRef={tabStripRef}
         subscribeToStripResize={subscribeToStripResize}
-        sortableIds={sortableIds}
+        sortableIds={stripSortableIds}
         activeVisibleTabId={activeVisibleTabId}
         renderStrip={(segments) => (
           // Why no-drag: tab interactions must work inside the titlebar's drag region (outer container stays window-draggable).
@@ -165,7 +193,7 @@ export function renderTabBarSurface(
             data-single-tab={singleTab ? '' : undefined}
             // Why: tabs are the only drag source, so a narrow pane clips the "+" before the last tab sliver.
             className={`group/tab-strip relative flex min-h-0 w-max max-w-full shrink ${
-              hasTabs ? 'min-w-10' : 'min-w-0'
+              stripHasTabs ? 'min-w-10' : 'min-w-0'
             }`}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
@@ -184,7 +212,7 @@ export function renderTabBarSurface(
                 .join(' ')}
             >
               <TabStripTooltipProvider>
-                {renderItems(segments)}
+                {renderItems(segments, pinnedCount)}
                 {clientHostedBrowserRows.length > 0 ? (
                   <ClientHostedBrowserTabRows
                     rows={clientHostedBrowserRows}
