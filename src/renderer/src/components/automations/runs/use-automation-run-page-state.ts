@@ -130,10 +130,10 @@ export function useAutomationRunPageState({
     setSelectedAutomationRunPageId
   ])
   useEffect(() => {
-    if (!pendingAutomationRunNavigation) {
+    const pending = pendingAutomationRunNavigation
+    if (!pending || useAppStore.getState().pendingAutomationRunNavigation !== pending) {
       return
     }
-    const pending = pendingAutomationRunNavigation
     // Why: a new request replaces any earlier missing-run result; it is resolved from scratch.
     setRunNotFound(null)
     if (pending.runId) {

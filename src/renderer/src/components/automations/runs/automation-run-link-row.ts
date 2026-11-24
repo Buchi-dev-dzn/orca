@@ -16,7 +16,7 @@ export function reportReplacedAutomationRunOwner(t: Translate): void {
   toast.error(
     t(
       'auto.components.automations.AutomationsPage.ownerChanged',
-      'This automation changed hosts. Refresh and try again.'
+      'Automation moved hosts. Refresh to retry.'
     )
   )
 }

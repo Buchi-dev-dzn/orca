@@ -160,7 +160,7 @@ export async function moveAutomationToDestination(
         notice: {
           message: translate(
             'auto.components.automations.AutomationsPage.ownerChanged',
-            'This automation changed hosts. Refresh and try again.'
+            'Automation moved hosts. Refresh to retry.'
           ),
           recovery: 'retry',
           severity: 'owner'
@@ -259,7 +259,7 @@ export async function saveExistingAutomation(
         throw new Error(
           translate(
             'auto.components.automations.AutomationsPage.ownerChanged',
-            'This automation changed hosts. Refresh and try again.'
+            'Automation moved hosts. Refresh to retry.'
           )
         )
       }

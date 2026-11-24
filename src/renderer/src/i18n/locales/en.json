@@ -19347,7 +19347,7 @@
           "newAutomation": "New Automation",
           "rowActions": "Automation actions",
           "tableLastRun": "Last run",
-          "ownerChanged": "This automation changed hosts. Refresh and try again.",
+          "ownerChanged": "Automation moved hosts. Refresh to retry.",
           "setupSkippedChanged": "Setup didn't run: this run's branch has different orca.yaml setup commands than the ones approved when the automation was saved. Save the automation again to review the current commands.",
           "deleteAutomationDescription": "Delete <name/> and its run history. Workspaces created by previous runs are not deleted.",
           "deleteExternalAutomationDescription": "Delete <name/> from <provider/> on <host/>.",
