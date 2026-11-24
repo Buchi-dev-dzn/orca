@@ -151,11 +151,12 @@ export function renderTabBarSurface(
           <div
             data-single-tab={singleTab ? '' : undefined}
             data-pinned-home-slot=""
+            // Read by the pane header: with side tabs beside it, Home adds a second 40px floor its action budget must keep.
+            data-pinned-home-with-strip={stripHasTabs ? '' : undefined}
             // Why: Home prefers its usual 144px; in overflow the strip gives way to its floor first, then Home narrows to its icons (label hidden once it no longer fits whole), then to its avatar on the strip's usual 40px tab floor.
-            // Below 250px of tab strip (room for Home's icons, the 40px sliver, "+" and every action) the order flips so the sliver gives way to Home's icons.
             // The tab fills this box, so the drop marker on its right edge is never clipped; sr-only keeps "Home" as the accessible name when it hides.
             // Label and pin thresholds leave room for the 16px working/unread dot.
-            className="@container/pinned-home group/tab-strip flex min-h-0 min-w-10 shrink grow-0 basis-[144px] overflow-hidden @max-[250px]/tab-strip:shrink-[10000] [&>[data-tab-strip-slot]]:w-full [&>[data-tab-strip-slot]]:min-w-0 @max-[100px]/pinned-home:[&_.tab-label]:sr-only @max-[60px]/pinned-home:[&_.lucide-pin]:hidden"
+            className="@container/pinned-home group/tab-strip flex min-h-0 min-w-10 shrink grow-0 basis-[144px] overflow-hidden @max-[90px]/tab-strip:shrink-[10000] [&>[data-tab-strip-slot]]:w-full [&>[data-tab-strip-slot]]:min-w-0 @max-[100px]/pinned-home:[&_.tab-label]:sr-only @max-[60px]/pinned-home:[&_.lucide-pin]:hidden"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <TabStripTooltipProvider>
@@ -202,7 +203,7 @@ export function renderTabBarSurface(
             // Why: tabs are the only drag source, so a narrow pane clips the "+" before the last tab sliver.
             className={`group/tab-strip relative flex min-h-0 w-max max-w-full ${
               pinnedCount > 0
-                ? 'shrink-[10000] @max-[250px]/tab-strip:shrink @max-[250px]/tab-strip:min-w-0'
+                ? 'shrink-[10000] @max-[90px]/tab-strip:min-w-0 @max-[90px]/tab-strip:shrink'
                 : 'shrink'
             } ${stripHasTabs ? 'min-w-10' : 'min-w-0'}`}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
@@ -276,7 +277,11 @@ export function renderTabBarSurface(
           {/* Why: below 86px (40 tab floor + 36 "+" + 8 action padding + 2 sub-pixel slack) "+" would only clip; hide it whole so Tab never lands on it. Empty groups keep it. */}
           <button
             className={`ml-2 my-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground ${
-              hasTabs ? '@max-[86px]/tab-strip:hidden' : ''
+              !hasTabs
+                ? ''
+                : pinnedCount > 0 && stripHasTabs
+                  ? '@max-[126px]/tab-strip:hidden'
+                  : '@max-[86px]/tab-strip:hidden'
             }`}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             title={t('auto.components.tab.bar.TabBar.b1a132357f', 'New tab')}
