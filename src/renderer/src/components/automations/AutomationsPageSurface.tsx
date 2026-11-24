@@ -158,7 +158,7 @@ export function AutomationsPageSurface({
     (selectedRecoveryHost.stableRef.selector.kind === 'ssh' ||
       selectedRecoveryHost.stableRef.authority.kind === 'runtime')
 
-  const modelActions = useAutomationRunModelActions(controller, bots)
+  const modelActions = useAutomationRunModelActions(controller, bots, selectedHostLabel)
 
   const pendingNavigation = store.pendingAutomationRunNavigation
   const renderPage = (): React.ReactNode => {

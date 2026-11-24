@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { stampBotHost } from '@/lib/bot-catalog-snapshot'
+import {
+  clearRuntimeCompatibilityCache,
+  markRuntimeEnvironmentCompatible
+} from '@/runtime/rpc/compatibility/runtime-compatibility-cache'
+import { createCompatibleRuntimeStatusResponse } from '@/runtime/rpc/testing/runtime-compatibility-test-fixture'
+import { AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY } from '../../../../../shared/automations/automation-runtime-capabilities'
 import { defineFixture } from '../../../component-fixtures/component-fixture'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
 import type { Bot } from '../../../../../shared/bot-types'
@@ -190,7 +196,9 @@ function RunRecovery({
         }}
         onPickModel={async (option) => {
           if (olderHost) {
-            showAutomationModelRecoveryResult({ status: 'unsupported' }, option.label)
+            showAutomationModelRecoveryResult({ status: 'unsupported' }, option.label, {
+              hostLabel: 'Sample server'
+            })
             return
           }
           if (remote) {
@@ -323,6 +331,7 @@ export const currentModelDiffers360 = defineFixture({
 
 export const olderHost360 = defineFixture({
   width: 360,
+  setup: () => clearRuntimeCompatibilityCache('sample-runtime'),
   render: () => (
     <RunRecovery
       initialRun={scenarios.modelFailed}
@@ -332,4 +341,13 @@ export const olderHost360 = defineFixture({
       empty={false}
     />
   )
+})
+
+export const knownOlderHost360 = defineFixture({
+  ...olderHost360,
+  setup: () =>
+    markRuntimeEnvironmentCompatible('sample-runtime', {
+      ...createCompatibleRuntimeStatusResponse('sample-runtime').result,
+      capabilities: [AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY]
+    })
 })

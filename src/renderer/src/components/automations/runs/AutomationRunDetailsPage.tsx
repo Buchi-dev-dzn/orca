@@ -8,7 +8,6 @@ import { hasVisibleOverlay } from '@/lib/overlay-interaction/visible-overlay'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
-import { isFailedAutomationRunModel } from '../../../../../shared/automations/history/automation-run-failure-copy'
 import { automationRunEventSourceKey } from '../../../../../shared/automations/automation-run-row-words'
 import { sayAutomationRun } from '../../native-chat/automation-run/automation-run-wording'
 import { getAgentLabel } from '../authoring/automation-draft-model'
@@ -36,8 +35,12 @@ import {
   getAutomationRunStepKey
 } from './automation-run-identity-label'
 import { AutomationsPageFrame, AutomationsPageTitle } from '../AutomationsPageFrame'
-import type { Bot, BotAgent } from '../../../../../shared/bot-types'
-import { automationRunModelFix, type AutomationRunModelOption } from './automation-run-model-fix'
+import type { Bot } from '../../../../../shared/bot-types'
+import {
+  automationRunModelFix,
+  useAutomationModelRecoveryUnsupported,
+  type AutomationRunModelOption
+} from './automation-run-model-fix'
 import { AutomationRunModelPicker } from './AutomationRunModelPicker'
 import { addAppKeyListener, removeAppKeyListener } from '@/lib/keyboard/app-keyboard-router'
 
@@ -125,18 +128,23 @@ export function AutomationRunDetailsPage({
   const needsCredentials = run.status === 'skipped_needs_interactive_auth'
   const [isModelFixPending, setIsModelFixPending] = useState(false)
   const modelFix = onPickModel ? automationRunModelFix({ run, automation, bot, canRerun }) : null
-  const renderFailureNotice = (action?: React.ReactNode, agent?: BotAgent) => (
+  const recoveryUnsupported = useAutomationModelRecoveryUnsupported(
+    modelFix ? bot?.hostId : undefined
+  )
+  const compactModelError =
+    !recoveryUnsupported && modelFix?.modelChanged
+      ? t('automations.runModelFix.modelChanged', 'Model changed.')
+      : t('automations.runModelFix.modelUnavailable', 'Model unavailable.')
+  const renderFailureNotice = (action?: React.ReactNode) => (
     <AutomationRunErrorNotice
       action={action}
-      compactError={
-        action ? t('automations.runModelFix.modelUnavailable', 'Model unavailable.') : undefined
-      }
+      compactError={action || recoveryUnsupported ? compactModelError : undefined}
       busy={isModelFixPending}
       label={t('auto.components.automations.runIdentity.runFailed', 'Run failed.')}
       error={
-        action && agent
+        action && modelFix?.currentModelFailed
           ? t('automations.runModelFix.errorWithPicker', "{{agent}} couldn't use this model.", {
-              agent: getAgentLabel(agent)
+              agent: getAgentLabel(modelFix.agent)
             })
           : (errorText ??
             t(
@@ -147,22 +155,14 @@ export function AutomationRunDetailsPage({
     />
   )
   const failureNotice =
-    modelFix && bot && onPickModel ? (
+    modelFix && bot && onPickModel && !recoveryUnsupported ? (
       <ModelPicker
         bot={bot}
         agent={modelFix.agent}
         currentModel={modelFix.currentModel}
         failureParams={modelFix.failureParams}
         disabled={isModelFixPending || isRerunPending}
-        renderNotice={(action) =>
-          renderFailureNotice(
-            action,
-            modelFix.currentModel &&
-              isFailedAutomationRunModel(modelFix.currentModel, modelFix.failureParams)
-              ? modelFix.agent
-              : undefined
-          )
-        }
+        renderNotice={renderFailureNotice}
         onPick={(model) => {
           setIsModelFixPending(true)
           void onPickModel(model).finally(() => setIsModelFixPending(false))

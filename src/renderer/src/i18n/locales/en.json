@@ -27074,12 +27074,14 @@
       "saved": "Model set to {{model}} for this automation.",
       "queuedWithNewerModel": "Run queued with the automation's latest model.",
       "modelUnavailable": "Model unavailable.",
+      "modelChanged": "Model changed.",
       "errorWithPicker": "{{agent}} couldn't use this model.",
       "failed": "Failed",
       "busy": "A model change is already in progress.",
       "rerunUnconfirmed": "Model set to {{model}}. Check the run history to see if the rerun started.",
       "unconfirmed": "Couldn't confirm the model change. Check the automation before rerunning.",
-      "unsupported": "Update Orca on this host to retry here."
+      "unsupported": "Update Orca on {{host}} to switch models.",
+      "thisComputer": "this computer"
     },
     "runPage": {
       "edit": "Edit",

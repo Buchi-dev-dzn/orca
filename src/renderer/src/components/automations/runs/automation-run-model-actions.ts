@@ -18,7 +18,8 @@ import {
 
 export function useAutomationRunModelActions(
   controller: AutomationsPageController,
-  bots: readonly Bot[]
+  bots: readonly Bot[],
+  hostLabel: string
 ) {
   const {
     list: { selectedRow, selected },
@@ -100,7 +101,7 @@ export function useAutomationRunModelActions(
       destination.invalidateRowHost(selectedRow.key, 'definition')
     }
     if (result.value.status !== 'queued') {
-      showAutomationModelRecoveryResult(result.value, model.label)
+      showAutomationModelRecoveryResult(result.value, model.label, { hostLabel })
       return
     }
     const navigation = {
@@ -110,10 +111,12 @@ export function useAutomationRunModelActions(
       ownerKey: ownerKey(availability.owner),
       origin: local.runPageOrigin
     }
-    showAutomationModelRecoveryResult(result.value, model.label, () => {
-      const state = useAppStore.getState()
-      state.setPendingAutomationRunNavigation({ ...navigation })
-      state.openAutomationsPage()
+    showAutomationModelRecoveryResult(result.value, model.label, {
+      openRun: () => {
+        const state = useAppStore.getState()
+        state.setPendingAutomationRunNavigation({ ...navigation })
+        state.openAutomationsPage()
+      }
     })
     if (
       runVisit &&

@@ -1,12 +1,32 @@
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
+import { peekRuntimeEnvironmentCapability } from '@/runtime/rpc/compatibility/runtime-compatibility-cache'
+import { useRuntimeHostStatusViewSelector } from '@/store/slices/runtime-status/views/use-runtime-status-view'
+import { AUTOMATION_MODEL_RECOVERY_RUNTIME_CAPABILITY } from '../../../../../shared/automations/automation-runtime-capabilities'
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationModelRecoveryResult } from '../../../../../shared/automations/history/automation-model-recovery'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
+import { isFailedAutomationRunModel } from '../../../../../shared/automations/history/automation-run-failure-copy'
 import type { Bot } from '../../../../../shared/bot-types'
 import { botAutomationSetup } from '../../../../../shared/bots/bot-agent-setup'
+import { parseExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 
 export type AutomationRunModelOption = { id: string; label: string }
+
+export function useAutomationModelRecoveryUnsupported(hostId: Bot['hostId'] | undefined): boolean {
+  const host = hostId && parseExecutionHostId(hostId)
+  const environmentId = host && host.kind === 'runtime' ? host.environmentId : null
+  return useRuntimeHostStatusViewSelector(environmentId, (entry) => {
+    const capability = AUTOMATION_MODEL_RECOVERY_RUNTIME_CAPABILITY
+    if (entry?.status) {
+      return !entry.status.capabilities?.includes(capability)
+    }
+    return (
+      environmentId !== null &&
+      peekRuntimeEnvironmentCapability(environmentId, capability) === false
+    )
+  })
+}
 
 export function automationRunModelFix({
   run,
@@ -34,9 +54,17 @@ export function automationRunModelFix({
   if (run.errorParams?.agent !== setup.agent) {
     return null
   }
+  const currentModel = setup.launch?.model
+  const currentModelFailed =
+    currentModel !== undefined && isFailedAutomationRunModel(currentModel, run.errorParams)
   return {
     agent: setup.agent,
-    currentModel: setup.launch?.model,
+    currentModel,
+    currentModelFailed,
+    modelChanged:
+      currentModel !== undefined &&
+      !currentModelFailed &&
+      typeof run.errorParams.model === 'string',
     failureParams: run.errorParams
   }
 }
@@ -44,7 +72,7 @@ export function automationRunModelFix({
 export function showAutomationModelRecoveryResult(
   result: AutomationModelRecoveryResult,
   model: string,
-  openRun?: () => void
+  { hostLabel, openRun }: { hostLabel?: string; openRun?: () => void } = {}
 ): void {
   switch (result.status) {
     case 'changed':
@@ -60,7 +88,15 @@ export function showAutomationModelRecoveryResult(
       break
     case 'unsupported':
       toast.error(
-        translate('automations.runModelFix.unsupported', 'Update Orca on this host to retry here.')
+        translate(
+          'automations.runModelFix.unsupported',
+          'Update Orca on {{host}} to switch models.',
+          {
+            host:
+              hostLabel?.trim() ||
+              translate('automations.runModelFix.thisComputer', 'this computer')
+          }
+        )
       )
       break
     case 'unconfirmed':
