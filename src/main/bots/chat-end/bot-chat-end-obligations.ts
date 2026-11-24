@@ -44,24 +44,18 @@ function coordinatedRun(db: OrchestrationDb, ids: readonly string[]): boolean {
 
 const OPEN_DISPATCH = "status IN ('pending', 'dispatched')"
 
-/** Holds a Dispatch that is not final: one it created, or one it was given. A finished one owes nothing. */
-function holdsOpenDispatch(
-  db: OrchestrationDb,
-  ids: readonly string[],
-  addresses: readonly string[]
-) {
+/** Dispatches not final yet that it created or was given; a finished one owes nothing. */
+function openDispatches(db: OrchestrationDb, ids: readonly string[], addresses: readonly string[]) {
   const i = placeholders(ids)
   const a = placeholders(addresses)
-  const open = (column: string, values: readonly string[], list: string) =>
-    exists(
-      db,
-      `SELECT 1 FROM dispatch_contexts WHERE ${column} IN (${list}) AND ${OPEN_DISPATCH} LIMIT 1`,
-      values
-    )
-  return (
-    open('creator_orca_session_id', ids, i) ||
-    open('assignee_orca_session_id', ids, i) ||
-    open('assignee_handle', addresses, a)
+  return count(
+    db,
+    `SELECT COUNT(*) AS n FROM (
+       SELECT id FROM dispatch_contexts WHERE creator_orca_session_id IN (${i}) AND ${OPEN_DISPATCH}
+       UNION SELECT id FROM dispatch_contexts WHERE assignee_orca_session_id IN (${i}) AND ${OPEN_DISPATCH}
+       UNION SELECT id FROM dispatch_contexts WHERE assignee_handle IN (${a}) AND ${OPEN_DISPATCH}
+     )`,
+    [...ids, ...ids, ...addresses]
   )
 }
 
@@ -117,8 +111,9 @@ function mailReasons(db: OrchestrationDb, ids: readonly string[]): BotChatEndRea
   if (coordinatedRun(db, ids)) {
     reasons.push({ kind: 'ran-workers' })
   }
-  if (holdsOpenDispatch(db, ids, addresses)) {
-    reasons.push({ kind: 'dispatch' })
+  const dispatches = openDispatches(db, ids, addresses)
+  if (dispatches > 0) {
+    reasons.push({ kind: 'dispatch', count: dispatches })
   }
   const unread = count(
     db,

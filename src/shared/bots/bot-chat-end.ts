@@ -25,8 +25,8 @@ export type BotChatEndReason =
   | { kind: 'questions'; count: number }
   /** Coordinated a Run: never ends in PR 1. */
   | { kind: 'ran-workers' }
-  /** A Dispatch it created or was given is not final yet. */
-  | { kind: 'dispatch' }
+  /** Dispatches it created or was given that are not final yet (pending or dispatched). */
+  | { kind: 'dispatch'; count: number }
   | { kind: 'automation'; name: string }
   | { kind: 'automation-run' }
   | { kind: 'usage-continue' }

@@ -54,7 +54,10 @@ export function botChatEndReasonText(reason: BotChatEndReason): string {
     case 'ran-workers':
       return translate('bots.endChat.reason.ranWorkers', 'Ran workers')
     case 'dispatch':
-      return translate('bots.endChat.reason.dispatch', 'A worker task still open')
+      return translate('bots.endChat.reason.dispatch', '{{count}} unfinished worker tasks', {
+        count: reason.count,
+        defaultValue_one: '{{count}} unfinished worker task'
+      })
     case 'automation':
       return translate('bots.endChat.reason.automation', 'Automation “{{name}}” posts here', {
         name: reason.name

@@ -137,19 +137,21 @@ describe("a chat row's End chat", () => {
 describe('why a chat cannot end yet', () => {
   it('counts one of a thing as one', () => {
     const lines = (count: number) =>
-      (['unread', 'requests', 'questions'] as const).map((kind) =>
+      (['unread', 'requests', 'questions', 'dispatch'] as const).map((kind) =>
         botChatEndReasonText({ kind, count })
       )
 
     expect(lines(1)).toEqual([
       '1 unread message',
       '1 request waiting for an answer',
-      '1 question waiting for a reply'
+      '1 question waiting for a reply',
+      '1 unfinished worker task'
     ])
     expect(lines(3)).toEqual([
       '3 unread messages',
       '3 requests waiting for an answer',
-      '3 questions waiting for a reply'
+      '3 questions waiting for a reply',
+      '3 unfinished worker tasks'
     ])
   })
 

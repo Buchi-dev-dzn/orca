@@ -37,7 +37,7 @@ export function botChatEndReasonLine(reason: BotChatEndReason): string {
     case 'ran-workers':
       return 'it ran workers'
     case 'dispatch':
-      return 'a worker task still open'
+      return plural(reason.count, 'unfinished worker task', 'unfinished worker tasks')
     case 'automation':
       return `automation "${reason.name}" posts here`
     case 'automation-run':

@@ -64,10 +64,20 @@ describe('orchestration a side chat took part in', () => {
     ['created', { creator_orca_session_id: CHAT }]
   ])('holds it while a Dispatch it was %s is open, and not once that is final', (_, columns) => {
     dispatch('d-open', 'dispatched', columns)
-    expect(owes()).toEqual([{ kind: 'dispatch' }])
+    expect(owes()).toEqual([{ kind: 'dispatch', count: 1 }])
 
     db.db.prepare("UPDATE dispatch_contexts SET status = 'completed' WHERE id = 'd-open'").run()
     expect(owes()).toEqual([])
+  })
+
+  it('counts each unfinished Dispatch once, pending or dispatched, even one it gave itself', () => {
+    dispatch('d-pending', 'pending', { assignee_orca_session_id: CHAT })
+    dispatch('d-self', 'dispatched', {
+      creator_orca_session_id: CHAT,
+      assignee_orca_session_id: CHAT
+    })
+    dispatch('d-done', 'failed', { assignee_orca_session_id: CHAT })
+    expect(owes()).toEqual([{ kind: 'dispatch', count: 2 }])
   })
 
   it("never counts another chat's Dispatch", () => {
