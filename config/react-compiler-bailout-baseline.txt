@@ -44,7 +44,7 @@
 1 src/renderer/src/components/automations/runs/AutomationRunsDashboard.tsx
 1 src/renderer/src/components/automations/runs/AutomationRunsTable.tsx
 1 src/renderer/src/components/automations/runs/use-automation-runs-dashboard.ts
-16 src/renderer/src/components/automations/runs/use-selected-automation-run-history.ts
+2 src/renderer/src/components/automations/runs/use-selected-automation-run-history.ts
 1 src/renderer/src/components/automations/use-automations-page-local-state.ts
 1 src/renderer/src/components/automations/use-automations-page-refresh.ts
 1 src/renderer/src/components/automations/use-automations-page-store-state.ts

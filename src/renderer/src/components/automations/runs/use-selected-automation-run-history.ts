@@ -85,17 +85,20 @@ function listedTargetForHost(hostId: string): AutomationHostTarget {
   return getAutomationListedTargetFromHostId(hostId, useAppStore.getState())
 }
 
-export function useSelectedAutomationRunHistory(input: SelectedAutomationRunHistoryInput): void {
-  const acquired = useRef<{
-    selected: AutomationListRow
-    context: AutomationDispatchContext
-    captured: AutomationCapturedOwner
-    target: AutomationHostTarget
-    authority: AutomationAuthorityRef
-    token: number | undefined
-  } | null>(null)
+type HistoryAcquisition = {
+  selected: AutomationListRow
+  context: AutomationDispatchContext
+  captured: AutomationCapturedOwner
+  target: AutomationHostTarget
+  authority: AutomationAuthorityRef
+  token: number | undefined
+}
+
+function acquireSelectedHistory(
+  input: SelectedAutomationRunHistoryInput,
+  previous: HistoryAcquisition | null
+): HistoryAcquisition | null {
   const selected = input.selected
-  const previous = acquired.current
   const navigationOwner = input.navigation?.ownerKey
   const previousOwner = previous && capturedAutomationOwnerKey(previous.captured)
   let request = previous
@@ -142,24 +145,36 @@ export function useSelectedAutomationRunHistory(input: SelectedAutomationRunHist
     }
   } else if (
     !selected &&
-    (input.selection?.automationId !== acquired.current?.selected.automation.id ||
-      input.selection?.rowKey !== acquired.current?.selected.key)
+    (input.selection?.automationId !== previous?.selected.automation.id ||
+      input.selection?.rowKey !== previous?.selected.key)
   ) {
     request = null
   }
+  return request
+}
+
+function historyNavigation(
+  navigation: SelectedAutomationRunNavigation,
+  request: HistoryAcquisition | null
+): SelectedAutomationRunNavigation {
+  return request &&
+    navigation?.runId &&
+    navigation.automationId === request.selected.automation.id &&
+    (!navigation.ownerKey || navigation.ownerKey === capturedAutomationOwnerKey(request.captured))
+    ? navigation
+    : null
+}
+
+export function useSelectedAutomationRunHistory(input: SelectedAutomationRunHistoryInput): void {
+  const acquired = useRef<HistoryAcquisition | null>(null)
+  const request = acquireSelectedHistory(input, acquired.current)
   const inputRef = useRef(input)
   useLayoutEffect(() => {
     acquired.current = request
     inputRef.current = input
   })
   const reloadToken = input.reloadToken
-  const navigation =
-    request &&
-    input.navigation?.runId &&
-    input.navigation.automationId === request.selected.automation.id &&
-    (!navigationOwner || navigationOwner === capturedAutomationOwnerKey(request.captured))
-      ? input.navigation
-      : null
+  const navigation = historyNavigation(input.navigation, request)
   const settled = useRef<{ request: typeof request; reloadToken: number } | null>(null)
 
   useEffect(() => {

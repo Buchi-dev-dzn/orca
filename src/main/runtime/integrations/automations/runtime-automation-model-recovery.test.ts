@@ -10,7 +10,7 @@ import {
 } from '../../../../shared/automations/history/automation-model-recovery'
 import { automationRunModelUnavailable } from '../../../../shared/automations/history/automation-run-failure-copy'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
-import type { PersistedState } from '../../../../shared/orca-profiles/persisted-state-types'
+import { getDefaultPersistedState } from '../../../../shared/orca-profiles/constants'
 import { FolderWorkspacePersistenceOperations } from '../../../persistence/restoring-sessions/folder-workspace-operations'
 import { makeTestBot } from '../../../bots/bot.test-fixture'
 import {
@@ -100,7 +100,7 @@ function beginRecovery(options: RecoveryOptions = {}) {
   )
   const expectedTarget = automationModelRecoveryTarget(automation.bot!, bot, folder.folderPath)
   const folders = new FolderWorkspacePersistenceOperations({
-    state: { folderWorkspaces: [folder] } as PersistedState,
+    state: { ...getDefaultPersistedState('/fixture'), folderWorkspaces: [folder] },
     scheduleSave() {},
     removeWorkspaceLineageForRemovedFolder() {},
     pruneMobileClientTabSelections() {},

@@ -16,9 +16,10 @@ export function useAutomationRecoveryModel(
     if (!owner || !id || !runKey) {
       return
     }
-    let request = 0
+    let request: object | undefined
     const refresh = () => {
-      const token = ++request
+      const token = {}
+      request = token
       void readAutomationRecoveryModelForOwner(owner, id)
         .catch(() => null)
         .then((model) => {
@@ -38,7 +39,7 @@ export function useAutomationRecoveryModel(
           })
         : undefined
     return () => {
-      request++
+      request = undefined
       unsubscribe?.()
     }
   }, [owner, id, runKey, desktopChoices])
