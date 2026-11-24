@@ -6,6 +6,7 @@ import { useAppStore } from '@/store'
 import { signedInOrcaAccount } from './signed-in-orca-account'
 import { refreshBotGitHub } from './bot-github-state'
 import { refreshBotLinear } from './bot-linear-state'
+import { refreshConnectorLinks } from './connector-links-state'
 import { connectorTripCalls } from './bot-connector-host-calls'
 import { openBotHostPage } from './bot-host-page'
 import { CONNECT_NOT_ROUTED } from '@/components/bots/bot-host-copy'
@@ -76,7 +77,10 @@ function set(trip: Trip, next: ConnectorConnectView): void {
 }
 
 function refresh(hostId: ExecutionHostId, source: ConnectorConnectSource): Promise<unknown> {
-  return source === 'linear' ? refreshBotLinear(hostId) : refreshBotGitHub(hostId)
+  return Promise.all([
+    source === 'linear' ? refreshBotLinear(hostId) : refreshBotGitHub(hostId),
+    refreshConnectorLinks(hostId)
+  ])
 }
 
 async function settle(
