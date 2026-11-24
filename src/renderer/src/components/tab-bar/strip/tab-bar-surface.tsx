@@ -147,8 +147,9 @@ export function renderTabBarSurface(
           <div
             data-single-tab={singleTab ? '' : undefined}
             data-pinned-home-slot=""
-            // Why shrink: in a narrow split the strip gives way to its 40px floor first (its huge shrink weight), then Home truncates so "+" stays reachable.
-            className="group/tab-strip flex min-h-0 min-w-0 shrink overflow-hidden @max-[320px]/tab-strip:[&>[data-tab-strip-slot]]:min-w-0"
+            // Why: in a narrow split the strip gives way to its 40px floor first (its huge shrink weight), then Home goes icon-only so "+" stays reachable.
+            // sr-only, not hidden: the label stays the tab's accessible name and the hover card still shows it.
+            className="group/tab-strip flex min-h-0 min-w-0 shrink overflow-hidden @max-[320px]/tab-strip:[&>[data-tab-strip-slot]]:min-w-0 @max-[320px]/tab-strip:[&_.tab-label]:sr-only"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <TabStripTooltipProvider>
