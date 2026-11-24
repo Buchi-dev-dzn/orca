@@ -147,8 +147,8 @@ export function renderTabBarSurface(
           <div
             data-single-tab={singleTab ? '' : undefined}
             data-pinned-home-slot=""
-            // Why a near-zero shrink: in a narrow split the strip gives way to its 40px floor first, then Home truncates so "+" stays reachable.
-            className="group/tab-strip flex min-h-0 min-w-0 shrink-[0.001] overflow-hidden [&>[data-tab-strip-slot]]:min-w-0"
+            // Why shrink: in a narrow split the strip gives way to its 40px floor first (its huge shrink weight), then Home truncates so "+" stays reachable.
+            className="group/tab-strip flex min-h-0 min-w-0 shrink overflow-hidden @max-[320px]/tab-strip:[&>[data-tab-strip-slot]]:min-w-0"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <TabStripTooltipProvider>
@@ -193,9 +193,9 @@ export function renderTabBarSurface(
           <div
             data-single-tab={singleTab ? '' : undefined}
             // Why: tabs are the only drag source, so a narrow pane clips the "+" before the last tab sliver.
-            className={`group/tab-strip relative flex min-h-0 w-max max-w-full shrink ${
-              stripHasTabs ? 'min-w-10' : 'min-w-0'
-            }`}
+            className={`group/tab-strip relative flex min-h-0 w-max max-w-full ${
+              pinnedCount > 0 ? 'shrink-[10000]' : 'shrink'
+            } ${stripHasTabs ? 'min-w-10' : 'min-w-0'}`}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <div
