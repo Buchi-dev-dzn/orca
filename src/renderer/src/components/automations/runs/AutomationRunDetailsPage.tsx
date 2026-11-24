@@ -58,6 +58,7 @@ export function AutomationRunDetailsPage({
   isRerunPending,
   onRerun,
   bot = null,
+  defaultModel,
   onEdit,
   onPickModel,
   modelPicker: ModelPicker = AutomationRunModelPicker,
@@ -82,6 +83,7 @@ export function AutomationRunDetailsPage({
   onRerun: () => void
   /** The bot a bot automation runs as; its host lists the models a failed model can be swapped for. */
   bot?: Pick<Bot, 'agent' | 'launch' | 'hostId' | 'folderWorkspaceId'> | null
+  defaultModel?: string
   /** Opens the automation's editor. */
   onEdit?: () => void
   /** Saves `model` to the automation, then reruns it; settles once both are done or one failed. */
@@ -127,7 +129,9 @@ export function AutomationRunDetailsPage({
   const { newer, older } = getAutomationRunNeighbors(runs, listedRun.id)
   const needsCredentials = run.status === 'skipped_needs_interactive_auth'
   const [isModelFixPending, setIsModelFixPending] = useState(false)
-  const modelFix = onPickModel ? automationRunModelFix({ run, automation, bot, canRerun }) : null
+  const modelFix = onPickModel
+    ? automationRunModelFix({ run, automation, bot, canRerun, defaultModel })
+    : null
   const recoveryUnsupported = useAutomationModelRecoveryUnsupported(
     modelFix ? bot?.hostId : undefined
   )

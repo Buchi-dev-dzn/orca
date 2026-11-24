@@ -11,6 +11,22 @@ import {
 } from './automation-capability-probe'
 import { callAuthority, ownerPrecondition } from './automation-scoped-list-client'
 
+export async function readAutomationRecoveryModelForOwner(
+  owner: AutomationOwnerRef,
+  id: string
+): Promise<string | null> {
+  const result = await callAuthority<{ recoveryModel?: string | null }>(
+    owner.authority,
+    'automation.show',
+    {
+      id,
+      expectedOwner: ownerPrecondition(owner),
+      modelRecovery: true
+    }
+  )
+  return result.recoveryModel ?? null
+}
+
 export async function recoverAutomationModelForOwner(
   owner: AutomationOwnerRef,
   input: AutomationModelRecoveryInput

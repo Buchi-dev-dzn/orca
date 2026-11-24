@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import type { Bot } from '../../../../../shared/bot-types'
 import { automationModelRecoveryTarget } from '../../../../../shared/automations/history/automation-model-recovery'
 import { ownerKey } from '../../../../../shared/automations/ownership/automation-owner-key'
+import { folderWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 import { automationRowHostId } from '../automations-page-navigation'
 import {
   automationActionAvailability,
@@ -12,9 +13,12 @@ import { recoverOwnedAutomationModel } from '../hosts/automation-owner-action-ru
 import { toDispatchResult } from '../hosts/automation-row-action-dispatch'
 import type { AutomationsPageController } from '../use-automations-page-controller'
 import {
+  automationRunModelFix,
   showAutomationModelRecoveryResult,
+  useAutomationModelRecoveryUnsupported,
   type AutomationRunModelOption
 } from './automation-run-model-fix'
+import { useAutomationRecoveryModel } from './use-automation-recovery-model'
 
 export function useAutomationRunModelActions(
   controller: AutomationsPageController,
@@ -44,6 +48,11 @@ export function useAutomationRunModelActions(
       ? (bots.find((entry) => entry.id === botId && entry.hostId === (hostId ?? 'local')) ?? null)
       : null
 
+  const folderPath =
+    selectedRow && bot
+      ? store.worktreeForRow(selectedRow, undefined, folderWorkspaceKey(bot.folderWorkspaceId))
+          ?.path
+      : undefined
   const activeRun =
     local.pageView === 'run' &&
     selectedRow &&
@@ -63,6 +72,31 @@ export function useAutomationRunModelActions(
     }
   }, [activeRun])
 
+  const eligible =
+    selectedAutomationRunPage &&
+    automationRunModelFix({
+      run: selectedAutomationRunPage,
+      automation: selected,
+      bot,
+      canRerun: true
+    })
+  const unsupported = useAutomationModelRecoveryUnsupported(eligible ? bot?.hostId : undefined)
+  const defaultsOwner =
+    activeRun &&
+    eligible &&
+    !unsupported &&
+    folderPath &&
+    !eligible.currentModel &&
+    availability?.kind === 'owned'
+      ? availability.owner
+      : null
+  const defaultModel = useAutomationRecoveryModel(
+    defaultsOwner,
+    selected?.id,
+    activeRun,
+    defaultsOwner?.authority.kind === 'desktop' ? store.settings?.agentLaunchChoices : undefined
+  )
+
   const onPickModel = async (model: AutomationRunModelOption): Promise<void> => {
     const target = selected?.bot
     if (
@@ -70,6 +104,7 @@ export function useAutomationRunModelActions(
       !selectedAutomationRunPage ||
       !target ||
       !bot ||
+      !folderPath ||
       availability?.kind !== 'owned'
     ) {
       return
@@ -79,7 +114,7 @@ export function useAutomationRunModelActions(
     const outcome = await recoverOwnedAutomationModel(availability, {
       id: automationId,
       runId: selectedAutomationRunPage.id,
-      expectedTarget: automationModelRecoveryTarget(target, bot),
+      expectedTarget: automationModelRecoveryTarget(target, bot, folderPath),
       model: model.id
     })
     if (outcome.status === 'uncaptured') {
@@ -108,6 +143,7 @@ export function useAutomationRunModelActions(
       automationId,
       runId: result.value.runId,
       hostId,
+      rowKey: selectedRow.key,
       ownerKey: ownerKey(availability.owner),
       origin: local.runPageOrigin
     }
@@ -127,5 +163,9 @@ export function useAutomationRunModelActions(
     }
   }
 
-  return { bot, onPickModel }
+  return {
+    bot: folderPath ? bot : null,
+    onPickModel: defaultsOwner && defaultModel === undefined ? undefined : onPickModel,
+    defaultModel: defaultModel ?? undefined
+  }
 }

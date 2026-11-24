@@ -258,9 +258,8 @@ export function AutomationsPageSurface({
               runActions.rerunAutomationRun(row, selectedAutomationRunPage)
             )
           }
-          bot={modelActions.bot}
+          {...modelActions}
           onEdit={() => runSelectedRowAction((row) => void editorActions.openEditDialog(row))}
-          onPickModel={modelActions.onPickModel}
           onOpenWorkspace={() => openRunWorkspace(selectedAutomationRunPage)}
           onSignIn={
             canSignIn ? () => hostCatalog.recover('reconnect', selectedRecoveryHost) : undefined

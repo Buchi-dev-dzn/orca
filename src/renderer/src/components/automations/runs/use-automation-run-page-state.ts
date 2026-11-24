@@ -3,16 +3,15 @@ import { useTranslate } from '@/i18n/use-translate'
 import { useAppStore } from '@/store/index'
 import { workspaceCatalogConfirmsAbsence } from '@/store/workspaces/catalog/workspace-catalog-absence'
 import {
-  getAutomationAuthorityTarget,
   getAutomationHostTargetKey,
   getAutomationListedTargetFromHostId
 } from '../hosts/automation-host-client'
 import { ALL_AUTOMATION_HOSTS_FILTER } from '../../../../../shared/automations/ownership/automation-host-filter'
 import { canRerunAutomationRun } from './automation-run-view-state'
 import {
-  capturedAutomationOwner,
-  capturedAutomationOwnerKey
-} from '../hosts/automation-captured-owner'
+  reportReplacedAutomationRunOwner,
+  resolveAutomationRunLinkRow
+} from './automation-run-link-row'
 import { getAutomationRunDetailsWorkspaceName } from './automation-run-workspace-display'
 import type { AutomationsPageListState } from '../listing/use-automations-page-list-state'
 import type { AutomationsPageLocalState } from '../use-automations-page-local-state'
@@ -171,19 +170,20 @@ export function useAutomationRunPageState({
       setPageView('run')
       return
     }
-    const pendingRow = visibleRows.find(
-      (row) =>
-        row.automation.id === pending.automationId &&
-        (!pending.ownerKey ||
-          pending.ownerKey ===
-            capturedAutomationOwnerKey(
-              capturedAutomationOwner(hostCatalog.rows.capturedOwners, row.key)
-            )) &&
-        (!row.catalogRef ||
-          getAutomationHostTargetKey(getAutomationAuthorityTarget(row.catalogRef.authority)) ===
-            pendingTargetKey)
+    const { row: pendingRow, ownerReplaced } = resolveAutomationRunLinkRow(
+      pending,
+      visibleRows,
+      hostCatalog.rows.capturedOwners,
+      pendingTargetKey
     )
     if (!pendingRow) {
+      if (ownerReplaced) {
+        setPendingAutomationRunNavigation(null)
+        setSelectedAutomationRunPageId(null)
+        setPageView('automations')
+        reportReplacedAutomationRunOwner(t)
+        return
+      }
       if (hostCatalog.resolution.effective.kind !== 'all') {
         hostCatalog.selectHost(ALL_AUTOMATION_HOSTS_FILTER)
       }
@@ -258,7 +258,8 @@ export function useAutomationRunPageState({
     setRunPageOrigin,
     setRunNotFound,
     setSelectedAutomationRunPageId,
-    setSelectedId
+    setSelectedId,
+    t
   ])
 
   const selectedRunTarget = selectedAutomationRunPage

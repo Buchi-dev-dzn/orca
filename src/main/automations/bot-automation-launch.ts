@@ -277,6 +277,7 @@ export function createBotAutomationDispatcher(
               ...(route.kind === 'take' ? {} : { threadPost: route.conversation })
             },
             sessionId: send.sessionId,
+            launchModel: send.launchModel,
             ended
           })
         )

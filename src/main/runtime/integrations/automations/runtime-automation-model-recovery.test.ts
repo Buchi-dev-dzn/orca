@@ -10,13 +10,20 @@ import {
 } from '../../../../shared/automations/history/automation-model-recovery'
 import { automationRunModelUnavailable } from '../../../../shared/automations/history/automation-run-failure-copy'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
+import type { PersistedState } from '../../../../shared/orca-profiles/persisted-state-types'
+import { FolderWorkspacePersistenceOperations } from '../../../persistence/restoring-sessions/folder-workspace-operations'
 import { makeTestBot } from '../../../bots/bot.test-fixture'
-import { recoverAutomationModel } from './runtime-automation-model-recovery'
+import {
+  readAutomationRecoveryModel,
+  recoverAutomationModel
+} from './runtime-automation-model-recovery'
 
 type RecoveryOptions = {
   run?: Partial<AutomationRun>
   target?: Partial<AutomationBotTarget>
   destinationBeforeHandler?: AutomationBotTarget['resultsTo']
+  folderMoveBeforeHandler?: string
+  settingsModel?: string
   input?: Partial<AutomationModelRecoveryInput>
   refuseRerun?: boolean
 }
@@ -88,8 +95,26 @@ function beginRecovery(options: RecoveryOptions = {}) {
   }
   const persisted = Promise.withResolvers<void>()
   const pending = new Set<string>()
-  const bot = makeTestBot({ launch: { model: 'old-model', options: { effort: 'high' } } })
-  const expectedTarget = automationModelRecoveryTarget(automation.bot!, bot)
+  const bot = makeTestBot(
+    options.settingsModel ? {} : { launch: { model: 'old-model', options: { effort: 'high' } } }
+  )
+  const expectedTarget = automationModelRecoveryTarget(automation.bot!, bot, folder.folderPath)
+  const folders = new FolderWorkspacePersistenceOperations({
+    state: { folderWorkspaces: [folder] } as PersistedState,
+    scheduleSave() {},
+    removeWorkspaceLineageForRemovedFolder() {},
+    pruneMobileClientTabSelections() {},
+    hydrateRepo: (repo) => repo
+  })
+  const getSettings = () => ({
+    botsEnabled: true,
+    ...(options.settingsModel
+      ? { agentLaunchChoices: { codex: { model: options.settingsModel } } }
+      : {})
+  })
+  if (options.folderMoveBeforeHandler) {
+    folders.updateFolderWorkspace(folder.id, { folderPath: options.folderMoveBeforeHandler })
+  }
   if (options.destinationBeforeHandler) {
     automation = {
       ...automation,
@@ -101,9 +126,9 @@ function beginRecovery(options: RecoveryOptions = {}) {
       pending,
       { assertOwner: () => {}, show: () => automation, listRuns: () => [failed] },
       {
-        getSettings: () => ({ botsEnabled: true }),
+        getSettings,
         getBots: () => [bot],
-        getFolderWorkspaces: () => [folder],
+        getFolderWorkspaces: () => folders.getFolderWorkspaces(),
         updateAutomation: (_id, { bot, agentId }) =>
           (automation = { ...automation, bot, agentId: agentId ?? automation.agentId }),
         flushPendingOrThrowAsync: () => persisted.promise
@@ -122,6 +147,12 @@ function beginRecovery(options: RecoveryOptions = {}) {
   return {
     recovery: recover(),
     recover,
+    readModel: () =>
+      readAutomationRecoveryModel({ getSettings, getBots: () => [bot] }, automation.bot),
+    moveFolder: (path: string) => {
+      folders.updateFolderWorkspace(folder.id, { folderPath: path })
+      persisted.resolve()
+    },
     acceptSave: persisted.resolve,
     rejectSave: persisted.reject,
     get target() {
@@ -133,6 +164,34 @@ function beginRecovery(options: RecoveryOptions = {}) {
     }
   }
 }
+
+it('refuses a same-ID folder move made before the handler and preserves a move made during the save', async () => {
+  const before = beginRecovery({ folderMoveBeforeHandler: '/fixture/moved' })
+  before.acceptSave()
+  await expect(before.recovery).resolves.toEqual({ status: 'changed' })
+  expect(before.target?.agentSetup).toBeUndefined()
+
+  const during = beginRecovery()
+  during.moveFolder('/fixture/moved')
+  await expect(during.recovery).resolves.toEqual({ status: 'saved', rerun: 'skipped' })
+  expect(during.target?.agentSetup?.launch?.model).toBe('replacement')
+})
+
+it('shows the owner Settings model, refuses the same choice and queues a different one', async () => {
+  const same = beginRecovery({
+    settingsModel: 'settings-model',
+    input: { model: 'settings-model' }
+  })
+  expect(same.readModel()).toBe('settings-model')
+  same.acceptSave()
+  await expect(same.recovery).resolves.toEqual({ status: 'changed' })
+  expect(same.target?.agentSetup).toBeUndefined()
+
+  const different = beginRecovery({ settingsModel: 'settings-model' })
+  different.acceptSave()
+  await expect(different.recovery).resolves.toEqual({ status: 'queued', runId: 'queued' })
+  expect(different.readModel()).toBe('replacement')
+})
 
 it('preserves an intervening destination edit and skips delivery after saving the model', async () => {
   const pending = beginRecovery()

@@ -9,6 +9,7 @@ import { createCompatibleRuntimeStatusResponse } from '@/runtime/rpc/testing/run
 import { AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY } from '../../../../../shared/automations/automation-runtime-capabilities'
 import { defineFixture } from '../../../component-fixtures/component-fixture'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
+import { automationRunModelUnavailable } from '../../../../../shared/automations/history/automation-run-failure-copy'
 import type { Bot } from '../../../../../shared/bot-types'
 import { makeAutomation, makeRun } from '../automations-page-fixtures'
 import { AutomationEditorDialog } from '../authoring/AutomationEditorDialog'
@@ -141,6 +142,7 @@ function RunRecovery({
   remote,
   empty,
   initialModel,
+  settingsModel,
   olderHost = false
 }: {
   initialRun: AutomationRun
@@ -148,6 +150,7 @@ function RunRecovery({
   remote: boolean
   empty: boolean
   initialModel?: string
+  settingsModel?: string
   olderHost?: boolean
 }) {
   const [run, setRun] = useState(initialRun)
@@ -190,7 +193,8 @@ function RunRecovery({
         canRerun
         isRerunPending={false}
         onRerun={() => setRun(scenarios.afterPick)}
-        bot={bot}
+        bot={settingsModel ? { ...bot, launch: undefined } : bot}
+        defaultModel={settingsModel}
         onEdit={() => {
           setDraft(buildAutomationEditDraft(automation))
           setEditorOpen(true)
@@ -318,6 +322,27 @@ export const noCatalog360 = defineFixture({
 })
 
 export const currentModelDiffers360 = defineFixture({
+  width: 360,
+  render: () => (
+    <RunRecovery
+      initialRun={{
+        ...scenarios.modelFailed,
+        ...automationRunModelUnavailable({
+          agent: 'codex',
+          agentLabel: 'Codex',
+          model: fixtureBot.launch?.model,
+          launchModel: fixtureBot.launch?.model
+        })
+      }}
+      settingsModel="model-beta"
+      open={false}
+      remote={false}
+      empty={false}
+    />
+  )
+})
+
+export const aliasFailure360 = defineFixture({
   width: 360,
   render: () => (
     <RunRecovery

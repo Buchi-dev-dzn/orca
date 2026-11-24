@@ -41,7 +41,12 @@ export type BotTurnEnd =
 
 /** The message a run sent, which names the turn it started, and its body's fingerprint, which a
  *  queued card keeps until it is edited. */
-export type BotRunSend = { sessionId: string; clientMessageId: string; fingerprint: string }
+export type BotRunSend = {
+  sessionId: string
+  clientMessageId: string
+  fingerprint: string
+  launchModel?: string
+}
 
 export type BotTurnWatch = {
   /** The end of the turn this send started; the watch ends with it. */

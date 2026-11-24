@@ -3,6 +3,8 @@ import type { AutomationRun } from '../../shared/automations/history/automation-
 import { normalizeLoadedAutomationRuns } from '../persistence/loading-store/profile-loading/normalize-loaded-state-collections'
 import type { PersistedState } from '../../shared/orca-profiles/persisted-state-types'
 import { makeTestBot } from './bot.test-fixture'
+import { botBackgroundStartOptions } from './bot-start-options'
+import { matchesAutomationRunModelFingerprint } from '../../shared/automations/history/automation-run-failure-copy'
 import {
   deliverBotRunResult,
   type BotRunDeliveryDependencies,
@@ -13,6 +15,11 @@ const NOTICE =
   "This run's message was answered together with another message, so its result wasn't posted."
 
 it('keeps the failed run’s agent and model in the run result', async () => {
+  const bot = makeTestBot({ agent: 'claude' })
+  const model = botBackgroundStartOptions(
+    { agentLaunchChoices: { claude: { model: 'model-x' } } },
+    bot
+  ).model
   const completion = await deliverBotRunResult(
     {
       notify: () => {},
@@ -27,9 +34,10 @@ it('keeps the failed run’s agent and model in the run result', async () => {
     {
       automation: { id: 'auto-1', name: 'Morning digest', dtstart: 1 },
       run: { id: 'run-1', trigger: 'scheduled' },
-      bot: makeTestBot({ agent: 'claude', launch: { model: 'model-x' } }),
+      bot,
       target: { runsIn: 'new', resultsTo: 'none' },
       sessionId: 'session-1',
+      launchModel: model,
       ended: { outcome: 'failure', message: '', failure: { kind: 'modelUnavailable' } }
     }
   )
@@ -39,6 +47,12 @@ it('keeps the failed run’s agent and model in the run result', async () => {
     errorCode: 'agentModelUnavailable',
     errorParams: { agent: 'claude', model: 'model-x' }
   })
+  expect(
+    matchesAutomationRunModelFingerprint(
+      'model-x',
+      'errorParams' in completion ? completion.errorParams : undefined
+    )
+  ).toBe(true)
 })
 
 describe('a run answered together with another message', () => {

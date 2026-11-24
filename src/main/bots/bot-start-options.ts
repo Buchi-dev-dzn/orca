@@ -2,8 +2,9 @@
 import type { Bot } from '../../shared/bot-types'
 import { botLaunchSeedOptions } from '../../shared/bots/bot-launch'
 import { explicitStructuredLaunchSeedOptions } from '../../shared/native-chat/input/session-options/native-chat-session-option-defaults'
+import { supportedStructuredSeedOptions } from '../runtime/agent-session/installation/structured-agent-runtime-metadata'
 
-type LaunchSettings = Parameters<typeof explicitStructuredLaunchSeedOptions>[0]
+export type BotLaunchSettings = Parameters<typeof explicitStructuredLaunchSeedOptions>[0]
 
 /**
  * The bot's own launch comes first. A conversation the owner opens keeps the chat defaults otherwise.
@@ -13,7 +14,7 @@ type LaunchSettings = Parameters<typeof explicitStructuredLaunchSeedOptions>[0]
  * sets only options keeps them over that default.
  */
 export function botStartOptions(
-  settings: () => LaunchSettings,
+  settings: () => BotLaunchSettings,
   bot: Pick<Bot, 'agent' | 'launch'>,
   background: boolean
 ): Record<string, string> {
@@ -25,4 +26,14 @@ export function botStartOptions(
     ...explicitStructuredLaunchSeedOptions(settings(), bot.agent),
     ...own
   }
+}
+
+export function botBackgroundStartOptions(
+  settings: BotLaunchSettings,
+  bot: Pick<Bot, 'agent' | 'launch'>
+): Record<string, string> {
+  return supportedStructuredSeedOptions(
+    bot.agent,
+    botStartOptions(() => settings, bot, true)
+  )
 }

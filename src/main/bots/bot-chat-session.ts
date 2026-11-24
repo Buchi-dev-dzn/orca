@@ -265,6 +265,7 @@ export async function startBotSession(
     sessionId?: string
     message?: { text: string; clientMessageId: string; run?: BotRunFields }
     background?: true
+    onLaunchModel?: (model: string | undefined) => void
     /** Whom the conversation acts for, recorded before it starts; unrecorded, its first message says. */
     actsFor?: BotConversationActsFor
   } & Pick<StructuredAgentSessionCreateOptions, 'beforeFirstMessage' | 'beforeDelivery'> = {}
@@ -281,6 +282,7 @@ export async function startBotSession(
     input.background === true
   )
   const launch = supportedStructuredSeedOptions(bot.agent, saved)
+  input.onLaunchModel?.(launch.model)
   const dropped = Object.keys(saved).filter((key) => !(key in launch))
   if (dropped.length) {
     console.warn(

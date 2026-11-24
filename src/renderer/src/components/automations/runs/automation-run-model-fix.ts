@@ -6,7 +6,10 @@ import { AUTOMATION_MODEL_RECOVERY_RUNTIME_CAPABILITY } from '../../../../../sha
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationModelRecoveryResult } from '../../../../../shared/automations/history/automation-model-recovery'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
-import { isFailedAutomationRunModel } from '../../../../../shared/automations/history/automation-run-failure-copy'
+import {
+  isFailedAutomationRunModel,
+  matchesAutomationRunModelFingerprint
+} from '../../../../../shared/automations/history/automation-run-failure-copy'
 import type { Bot } from '../../../../../shared/bot-types'
 import { botAutomationSetup } from '../../../../../shared/bots/bot-agent-setup'
 import { parseExecutionHostId } from '../../../../../shared/execution-host/execution-host'
@@ -32,12 +35,14 @@ export function automationRunModelFix({
   run,
   automation,
   bot,
-  canRerun
+  canRerun,
+  defaultModel
 }: {
   run: Pick<AutomationRun, 'status' | 'errorCode' | 'errorParams'>
   automation: Pick<Automation, 'bot'> | null
   bot: Pick<Bot, 'agent' | 'launch'> | null
   canRerun: boolean
+  defaultModel?: string
 }) {
   const target = automation?.bot
   if (
@@ -54,7 +59,7 @@ export function automationRunModelFix({
   if (run.errorParams?.agent !== setup.agent) {
     return null
   }
-  const currentModel = setup.launch?.model
+  const currentModel = setup.launch?.model ?? defaultModel
   const currentModelFailed =
     currentModel !== undefined && isFailedAutomationRunModel(currentModel, run.errorParams)
   return {
@@ -63,8 +68,7 @@ export function automationRunModelFix({
     currentModelFailed,
     modelChanged:
       currentModel !== undefined &&
-      !currentModelFailed &&
-      typeof run.errorParams.model === 'string',
+      matchesAutomationRunModelFingerprint(currentModel, run.errorParams) === false,
     failureParams: run.errorParams
   }
 }

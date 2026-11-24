@@ -19,7 +19,8 @@ export type AutomationModelRecoveryResult =
 /** Model-only edits leave the delivery target intact. */
 export function automationModelRecoveryTarget(
   target: AutomationBotTarget,
-  bot: Pick<Bot, 'agent' | 'launch' | 'folderWorkspaceId' | 'permissionMode'>
+  bot: Pick<Bot, 'agent' | 'launch' | 'folderWorkspaceId' | 'permissionMode'>,
+  folderPath: string
 ): string {
   const { agent, launch } = botAutomationSetup(target, bot)
   const { botId, runsIn, resultsTo, letBotReact } = target
@@ -38,6 +39,7 @@ export function automationModelRecoveryTarget(
         destination,
         letBotReact === true,
         bot.folderWorkspaceId,
+        folderPath,
         bot.permissionMode,
         agent,
         Object.keys(options)

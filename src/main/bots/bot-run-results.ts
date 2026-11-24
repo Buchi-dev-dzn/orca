@@ -90,6 +90,7 @@ export type BotRunResult = {
   }
   /** The conversation the run went to. */
   sessionId: string
+  launchModel?: string
   ended: BotTurnEnd
 }
 
@@ -166,7 +167,7 @@ export async function deliverBotRunResult(
     )
     const error = COPY.failed(ended.outcome)
     await resultNote.leave(deps, result, 'couldNotFinish', ended.message.trim() || error)
-    const modelFailure = botRunModelFailure(target.runsIn === 'new' ? bot : undefined, ended)
+    const modelFailure = botRunModelFailure(result, ended)
     if (modelFailure) {
       return { status: 'dispatch_failed', ...modelFailure }
     }

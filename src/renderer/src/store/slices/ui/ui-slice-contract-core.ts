@@ -26,6 +26,7 @@ export type PendingAutomationRunNavigation = {
   runId: string | null
   hostId?: ExecutionHostId
   ownerKey?: string
+  rowKey?: string
   /** With runId null: open the automation's run history instead of its detail. */
   paneTab?: 'overview' | 'runs'
   /** With a runId: where Escape returns; defaults to the automation detail. */

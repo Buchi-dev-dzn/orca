@@ -113,14 +113,21 @@ export function isFailedAutomationRunModel(
   model: string,
   params: AutomationRunFailure['errorParams']
 ): boolean {
-  if (
-    typeof params?.modelFingerprint === 'string' &&
-    /^[a-f0-9]{64}$/.test(params.modelFingerprint)
-  ) {
-    return params.modelFingerprint === automationModelFingerprint(model)
-  }
   // Older history only has the display value. A collision cannot be disambiguated there.
-  return typeof params?.model === 'string' && params.model === automationRunModelParam(model)
+  return (
+    matchesAutomationRunModelFingerprint(model, params) ??
+    (typeof params?.model === 'string' && params.model === automationRunModelParam(model))
+  )
+}
+
+export function matchesAutomationRunModelFingerprint(
+  model: string,
+  params: AutomationRunFailure['errorParams']
+): boolean | undefined {
+  const fingerprint = params?.modelFingerprint
+  return typeof fingerprint === 'string' && /^[a-f0-9]{64}$/.test(fingerprint)
+    ? fingerprint === automationModelFingerprint(model)
+    : undefined
 }
 
 function automationModelFingerprint(model: string): string {
