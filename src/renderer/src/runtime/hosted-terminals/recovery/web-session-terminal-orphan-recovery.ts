@@ -1,4 +1,3 @@
-import { noteChatTabShowings } from '../../native-chat/tab-retirement/chat-tab-showings'
 import type { TerminalOrphanRecoveryOptions } from './web-session-terminal-orphan-recovery-options'
 import type { RuntimeMobileSessionTabsResult } from '../../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import type { RuntimeRpcResponse } from '../../../../../shared/remote-runtime/rpc/runtime-rpc-envelope'
@@ -249,7 +248,6 @@ export function recoverWebSessionTerminalOrphansBeforeApply(
     mergeRetainedTerminalRetirementProofs(environmentId, frame),
     { kind: 'environment', environmentId }
   )
-  noteChatTabShowings(snapshot, { kind: 'environment', environmentId })
   const key = recoveryKey(
     environmentId,
     snapshot.worktree,
