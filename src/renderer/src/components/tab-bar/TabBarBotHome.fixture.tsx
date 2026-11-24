@@ -174,3 +174,11 @@ export const homeColoredInPaneHeader = defineFixture({
   setup,
   render: () => <BotHomeTabsFixture sideChats={12} paneHeader homeColor="#e11d48" />
 })
+
+// Past the windowing threshold: the strip mounts runs of side chats around gaps while Home stays pinned.
+export const homeWindowed = defineFixture({
+  width: 620,
+  store: { workspaceSessionReady: true },
+  setup,
+  render: () => <BotHomeTabsFixture sideChats={120} />
+})
