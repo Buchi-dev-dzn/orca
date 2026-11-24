@@ -1,5 +1,6 @@
 import type { Bot } from '../../../../../shared/bot-types'
 import { isBotHomeTab } from '../../../../../shared/bots/bot-home-tab'
+import type { DropIndicator } from '../strip/drop-indicator'
 import type { TabBarItem } from './tab-bar-item-model'
 
 /** The bot's Home when it leads the order; only then does it leave the scroller for a fixed slot. */
@@ -18,4 +19,22 @@ export function stripSortableIdsWithoutPinnedHome(
   pinnedHomeId: string | null
 ): string[] {
   return pinnedHomeId === null ? sortableIds : sortableIds.filter((id) => id !== pinnedHomeId)
+}
+
+/** "Insert after the pinned Home" marks Home's right edge: the first strip tab can be scrolled away or unmounted. */
+export function pinnedHomeDropIndicators(
+  indicators: Map<string, DropIndicator>,
+  pinnedHomeId: string | null,
+  firstStripId: string | undefined
+): Map<string, DropIndicator> {
+  if (pinnedHomeId === null || firstStripId === undefined) {
+    return indicators
+  }
+  if (indicators.get(firstStripId) !== 'left') {
+    return indicators
+  }
+  const moved = new Map(indicators)
+  moved.delete(firstStripId)
+  moved.set(pinnedHomeId, 'right')
+  return moved
 }

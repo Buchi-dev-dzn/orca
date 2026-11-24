@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Tab } from '../../../../../shared/workspace-layout/tab-groups/tab-types'
 import type { TabBarItem } from './tab-bar-item-model'
-import { findPinnedHomeTabId, stripSortableIdsWithoutPinnedHome } from './pinned-home-tab'
+import {
+  findPinnedHomeTabId,
+  pinnedHomeDropIndicators,
+  stripSortableIdsWithoutPinnedHome
+} from './pinned-home-tab'
 
 const homeBot = { chatSessionId: 'home-chat' }
 
@@ -40,5 +44,24 @@ describe('stripSortableIdsWithoutPinnedHome', () => {
   it('keeps the same array when nothing is pinned', () => {
     const ids = ['a', 'b']
     expect(stripSortableIdsWithoutPinnedHome(ids, null)).toBe(ids)
+  })
+})
+
+describe('pinnedHomeDropIndicators', () => {
+  it("marks a drop after the pinned Home on Home's own right edge", () => {
+    const moved = pinnedHomeDropIndicators(new Map([['side-0', 'left']]), 'home', 'side-0')
+    expect([...moved]).toEqual([['home', 'right']])
+  })
+
+  it('leaves drops elsewhere in the strip on their tab', () => {
+    const indicators = new Map([['side-3', 'left' as const]])
+    expect(pinnedHomeDropIndicators(indicators, 'home', 'side-0')).toBe(indicators)
+    const afterFirst = new Map([['side-0', 'right' as const]])
+    expect(pinnedHomeDropIndicators(afterFirst, 'home', 'side-0')).toBe(afterFirst)
+  })
+
+  it('changes nothing when Home is not pinned', () => {
+    const indicators = new Map([['side-0', 'left' as const]])
+    expect(pinnedHomeDropIndicators(indicators, null, 'side-0')).toBe(indicators)
   })
 })

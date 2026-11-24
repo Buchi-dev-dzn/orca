@@ -147,7 +147,8 @@ export function renderTabBarSurface(
           <div
             data-single-tab={singleTab ? '' : undefined}
             data-pinned-home-slot=""
-            className="group/tab-strip flex min-h-0 flex-none"
+            // Why a near-zero shrink: in a narrow split the strip gives way to its 40px floor first, then Home truncates so "+" stays reachable.
+            className="group/tab-strip flex min-h-0 min-w-0 shrink-[0.001] overflow-hidden [&>[data-tab-strip-slot]]:min-w-0"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <TabStripTooltipProvider>

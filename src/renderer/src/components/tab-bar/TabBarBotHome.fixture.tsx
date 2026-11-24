@@ -121,3 +121,11 @@ export const homeOverflowing = defineFixture({
   setup,
   render: () => <BotHomeTabsFixture sideChats={12} />
 })
+
+// A narrow split: the strip keeps its sliver, Home truncates, and "+" stays reachable.
+export const homeNarrowSplit = defineFixture({
+  width: 160,
+  store: { workspaceSessionReady: true },
+  setup,
+  render: () => <BotHomeTabsFixture sideChats={12} />
+})

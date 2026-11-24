@@ -13,7 +13,11 @@ import { useActiveClientHostedBrowserRowId } from '@/runtime/browser/client-host
 import { useEditorGroupFileDropOwner } from '../editor/file-drop/use-editor-group-file-drop-owner'
 import { useBotForWorkspace, useBotGroupForWorkspace } from '../bots/bot-workspace'
 import { useTranslate } from '@/i18n/use-translate'
-import { findPinnedHomeTabId, stripSortableIdsWithoutPinnedHome } from './model/pinned-home-tab'
+import {
+  findPinnedHomeTabId,
+  pinnedHomeDropIndicators,
+  stripSortableIdsWithoutPinnedHome
+} from './model/pinned-home-tab'
 
 function TabBarInner(props: TabBarProps): React.JSX.Element {
   const t = useTranslate()
@@ -84,6 +88,15 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
     () => stripSortableIdsWithoutPinnedHome(itemProjection.sortableIds, pinnedHomeId),
     [itemProjection.sortableIds, pinnedHomeId]
   )
+  const dropIndicatorByVisibleId = useMemo(
+    () =>
+      pinnedHomeDropIndicators(
+        itemProjection.dropIndicatorByVisibleId,
+        pinnedHomeId,
+        stripSortableIds[0]
+      ),
+    [itemProjection.dropIndicatorByVisibleId, pinnedHomeId, stripSortableIds]
+  )
   const togglePinned = (item: TabBarItem): void => {
     // pinTab/unpinTab mirror the change to the host for remote-server tabs.
     if (item.isPinned) {
@@ -147,7 +160,7 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
       props,
       runtime,
       createMenu,
-      itemProjection,
+      itemProjection: { ...itemProjection, dropIndicatorByVisibleId },
       pinnedSortableIds,
       stripSortableIds,
       tabStripNavigation,
