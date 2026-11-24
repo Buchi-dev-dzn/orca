@@ -45,6 +45,8 @@ export type AgentSessionTabVisibilityOptions = {
   background?: boolean
   /** Hide the tab, drop any background hold, and mark the bot chat ended (see `isSessionEnded`). */
   end?: boolean
+  /** A publish that opens nothing new (no activation): a tab already listed keeps its showing. */
+  keepShowing?: boolean
 }
 
 /** Derive the complete legacy selection only at a real ownership/visibility boundary. */
@@ -234,8 +236,16 @@ export abstract class AgentSessionRecordTabs extends AgentSessionRecordPublicati
     sessionId: string,
     visible: boolean,
     tabId?: string,
-    { check, capture, background, end, writerFence }: AgentSessionTabVisibilityOptions = {}
+    {
+      check,
+      capture,
+      background,
+      end,
+      writerFence,
+      keepShowing
+    }: AgentSessionTabVisibilityOptions = {}
   ): Promise<void> {
+    const sameShowing = visible && keepShowing === true && this.isSessionTabVisible(sessionId)
     return this.commitStoreCommand(
       {
         kind: 'tab-visibility',
@@ -249,9 +259,12 @@ export abstract class AgentSessionRecordTabs extends AgentSessionRecordPublicati
       },
       check
     ).then((tab) => {
-      // Before any later write's check runs: a show is a new showing even of a listed tab.
+      // Before any later write's check runs: a show is a new showing even of a listed tab, unless
+      // it opens nothing new; a hide in between dropped the old name, so the next read mints one.
       if (visible) {
-        this.showings.set(sessionId, randomUUID())
+        if (!sameShowing) {
+          this.showings.set(sessionId, randomUUID())
+        }
       } else {
         this.showings.delete(sessionId)
       }

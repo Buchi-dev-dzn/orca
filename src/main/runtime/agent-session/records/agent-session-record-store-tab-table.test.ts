@@ -181,4 +181,22 @@ describe('chat tab table', () => {
     await reopened.setSessionTabVisibility('session-alpha', false, undefined, { background: true })
     expect(reopened.getSessionTabShowing('session-alpha')).toBeNull()
   })
+
+  it("keeps a listed tab's showing through a publish that opens nothing new", async () => {
+    const store = await open()
+    await store.reserveOwner(reserveRequest())
+    await store.setSessionTabVisibility('session-alpha', true)
+    const shown = store.getSessionTabShowing('session-alpha')
+
+    // An automation reusing the chat publishes it without activating: no client hears of it.
+    await store.setSessionTabVisibility('session-alpha', true, undefined, { keepShowing: true })
+    expect(store.getSessionTabShowing('session-alpha')).toBe(shown)
+
+    // Hidden in between, the same publish shows it anew, under a new name.
+    await store.setSessionTabVisibility('session-alpha', false, undefined, { background: true })
+    await store.setSessionTabVisibility('session-alpha', true, undefined, { keepShowing: true })
+    const again = store.getSessionTabShowing('session-alpha')
+    expect(again).toEqual(expect.any(String))
+    expect(again).not.toBe(shown)
+  })
 })
