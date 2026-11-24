@@ -102,12 +102,13 @@ const scenarios: Record<string, AutomationRun> = {
 }
 
 function fixedPicker(open: boolean, options = MODELS): typeof AutomationRunModelPicker {
-  return function FixedPicker({ failedModel, disabled, onPick, renderNotice }) {
+  return function FixedPicker({ currentModel, failureParams, disabled, onPick, renderNotice }) {
     return renderNotice(
       options.length ? (
         <AutomationRunModelSelect
           options={options}
-          failedModel={failedModel}
+          currentModel={currentModel}
+          failureParams={failureParams}
           disabled={disabled}
           defaultOpen={open}
           onPick={onPick}
@@ -132,15 +133,21 @@ function RunRecovery({
   initialRun,
   open,
   remote,
-  empty
+  empty,
+  initialModel,
+  olderHost = false
 }: {
   initialRun: AutomationRun
   open: boolean
   remote: boolean
   empty: boolean
+  initialModel?: string
+  olderHost?: boolean
 }) {
   const [run, setRun] = useState(initialRun)
-  const [model, setModel] = useState(initialRun === scenarios.afterPick ? 'model-beta' : null)
+  const [model, setModel] = useState(
+    initialModel ?? (initialRun === scenarios.afterPick ? 'model-beta' : null)
+  )
   const automation = model
     ? {
         ...botAutomation,
@@ -150,7 +157,7 @@ function RunRecovery({
   const [draft, setDraft] = useState(() => buildAutomationEditDraft(botAutomation))
   const [editorOpen, setEditorOpen] = useState(false)
   const [workspaceOpened, setWorkspaceOpened] = useState(false)
-  const bot = remote ? remoteFixtureBot : fixtureBot
+  const bot = remote || olderHost ? remoteFixtureBot : fixtureBot
   const history: SelectedAutomationRunHistoryOutcome = {
     automationId: botAutomation.id,
     rowKey: null,
@@ -170,7 +177,7 @@ function RunRecovery({
         runs={[run]}
         history={history}
         relativeNow={NOW}
-        hostLabel={remote ? 'Sample server' : 'This computer'}
+        hostLabel={remote || olderHost ? 'Sample server' : 'This computer'}
         workspaceName="Sample workspace"
         workspaceActionLabel="Open workspace"
         canRerun
@@ -182,6 +189,10 @@ function RunRecovery({
           setEditorOpen(true)
         }}
         onPickModel={async (option) => {
+          if (olderHost) {
+            showAutomationModelRecoveryResult({ status: 'unsupported' }, option.label)
+            return
+          }
           if (remote) {
             await new Promise((resolve) => setTimeout(resolve, 5000))
           }
@@ -295,4 +306,30 @@ export const remoteModelFailed360 = defineFixture({
 export const noCatalog360 = defineFixture({
   width: 360,
   render: () => renderBotRun(scenarios.modelFailed, false, false, true)
+})
+
+export const currentModelDiffers360 = defineFixture({
+  width: 360,
+  render: () => (
+    <RunRecovery
+      initialRun={scenarios.modelFailed}
+      initialModel="model-beta"
+      open={false}
+      remote={false}
+      empty={false}
+    />
+  )
+})
+
+export const olderHost360 = defineFixture({
+  width: 360,
+  render: () => (
+    <RunRecovery
+      initialRun={scenarios.modelFailed}
+      olderHost
+      open={false}
+      remote={false}
+      empty={false}
+    />
+  )
 })

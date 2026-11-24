@@ -26366,7 +26366,6 @@
     "openConnectors": "打开连接器",
     "runModelFix": {
       "model": "模型",
-      "pickModel": "选择模型",
       "changed": "此自动化已更改，因此未保存模型。请使用编辑进行更改。",
       "rerunFailed": "已将此自动化的模型设为 {{model}}，但重新运行未能开始。",
       "saved": "已将此自动化的模型设为 {{model}}。",

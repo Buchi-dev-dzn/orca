@@ -23369,7 +23369,6 @@
     },
     "runModelFix": {
       "model": "模型",
-      "pickModel": "選擇模型",
       "changed": "此自動化已變更，因此未儲存模型。請使用編輯進行變更。",
       "rerunFailed": "已將此自動化的模型設為 {{model}}，但重新執行未能開始。",
       "saved": "已將此自動化的模型設為 {{model}}。",

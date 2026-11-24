@@ -9,6 +9,10 @@ import {
 } from '../hosts/automation-host-client'
 import { ALL_AUTOMATION_HOSTS_FILTER } from '../../../../../shared/automations/ownership/automation-host-filter'
 import { canRerunAutomationRun } from './automation-run-view-state'
+import {
+  capturedAutomationOwner,
+  capturedAutomationOwnerKey
+} from '../hosts/automation-captured-owner'
 import { getAutomationRunDetailsWorkspaceName } from './automation-run-workspace-display'
 import type { AutomationsPageListState } from '../listing/use-automations-page-list-state'
 import type { AutomationsPageLocalState } from '../use-automations-page-local-state'
@@ -170,6 +174,11 @@ export function useAutomationRunPageState({
     const pendingRow = visibleRows.find(
       (row) =>
         row.automation.id === pending.automationId &&
+        (!pending.ownerKey ||
+          pending.ownerKey ===
+            capturedAutomationOwnerKey(
+              capturedAutomationOwner(hostCatalog.rows.capturedOwners, row.key)
+            )) &&
         (!row.catalogRef ||
           getAutomationHostTargetKey(getAutomationAuthorityTarget(row.catalogRef.authority)) ===
             pendingTargetKey)

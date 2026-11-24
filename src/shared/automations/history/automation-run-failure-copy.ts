@@ -1,3 +1,5 @@
+import { sha256 } from '@noble/hashes/sha256'
+import { bytesToHex } from '@noble/hashes/utils'
 import { sanitizeCrashReportString } from '../../crash-reporting/crash-report-redaction'
 
 // One English table for automation run skip/failure reasons: main persists `error`, the renderer translates by code.
@@ -107,14 +109,34 @@ export function automationRunModelParam(model: string): string {
 }
 
 /** The run's agent could not use its model. `agent` only when the run's own agent is known. */
+export function isFailedAutomationRunModel(
+  model: string,
+  params: AutomationRunFailure['errorParams']
+): boolean {
+  if (
+    typeof params?.modelFingerprint === 'string' &&
+    /^[a-f0-9]{64}$/.test(params.modelFingerprint)
+  ) {
+    return params.modelFingerprint === automationModelFingerprint(model)
+  }
+  // Older history only has the display value. A collision cannot be disambiguated there.
+  return typeof params?.model === 'string' && params.model === automationRunModelParam(model)
+}
+
+function automationModelFingerprint(model: string): string {
+  return bytesToHex(sha256(JSON.stringify(model)))
+}
+
 export function automationRunModelUnavailable({
   agent,
   agentLabel,
-  model
+  model,
+  launchModel
 }: {
   agent?: string
   agentLabel?: string
   model?: string
+  launchModel?: string
 }): AutomationRunFailure {
   const bounded = model ? automationRunModelParam(model) : ''
   const EN = AUTOMATION_RUN_FAILURE_COPY
@@ -123,6 +145,10 @@ export function automationRunModelUnavailable({
       .replace('{{agent}}', () => agentLabel ?? EN.theAgent)
       .replace('{{model}}', () => bounded || EN.selectedModel),
     errorCode: 'agentModelUnavailable',
-    errorParams: { ...(agent ? { agent } : {}), ...(bounded ? { model: bounded } : {}) }
+    errorParams: {
+      ...(agent ? { agent } : {}),
+      ...(bounded ? { model: bounded } : {}),
+      ...(launchModel ? { modelFingerprint: automationModelFingerprint(launchModel) } : {})
+    }
   }
 }

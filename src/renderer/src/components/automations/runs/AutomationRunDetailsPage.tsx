@@ -8,6 +8,7 @@ import { hasVisibleOverlay } from '@/lib/overlay-interaction/visible-overlay'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
+import { isFailedAutomationRunModel } from '../../../../../shared/automations/history/automation-run-failure-copy'
 import { automationRunEventSourceKey } from '../../../../../shared/automations/automation-run-row-words'
 import { sayAutomationRun } from '../../native-chat/automation-run/automation-run-wording'
 import { getAgentLabel } from '../authoring/automation-draft-model'
@@ -150,9 +151,18 @@ export function AutomationRunDetailsPage({
       <ModelPicker
         bot={bot}
         agent={modelFix.agent}
-        failedModel={modelFix.failedModel}
+        currentModel={modelFix.currentModel}
+        failureParams={modelFix.failureParams}
         disabled={isModelFixPending || isRerunPending}
-        renderNotice={(action) => renderFailureNotice(action, modelFix.agent)}
+        renderNotice={(action) =>
+          renderFailureNotice(
+            action,
+            modelFix.currentModel &&
+              isFailedAutomationRunModel(modelFix.currentModel, modelFix.failureParams)
+              ? modelFix.agent
+              : undefined
+          )
+        }
         onPick={(model) => {
           setIsModelFixPending(true)
           void onPickModel(model).finally(() => setIsModelFixPending(false))

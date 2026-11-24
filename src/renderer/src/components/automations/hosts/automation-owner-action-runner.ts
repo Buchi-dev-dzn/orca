@@ -39,10 +39,10 @@ import {
   listOrphanAutomationRuns,
   listOrphanAutomationRunsPage,
   runAutomationNowForOwner,
-  recoverAutomationModelForOwner,
   updateAutomationForOwner,
   updateOrphanAutomation
 } from './automation-scoped-list-client'
+import { recoverAutomationModelForOwner } from './automation-model-recovery-client'
 
 export type AutomationOwnerConflict = {
   code: AutomationOwnerConflictCode | 'unsupported_host_scope'

@@ -27068,7 +27068,7 @@
     "hostUnreachable": "Couldn't reach {{host}}. Try again once it's back.",
     "runModelFix": {
       "model": "Model",
-      "pickModel": "Pick a model",
+      "defaultModel": "Default model",
       "changed": "This automation changed, so the model wasn't saved. Use Edit to change it.",
       "rerunFailed": "Model set to {{model}} for this automation, but the rerun didn’t start.",
       "saved": "Model set to {{model}} for this automation.",
@@ -27078,7 +27078,8 @@
       "failed": "Failed",
       "busy": "A model change is already in progress.",
       "rerunUnconfirmed": "Model set to {{model}}. Check the run history to see if the rerun started.",
-      "unconfirmed": "Couldn't confirm the model change. Check the automation before rerunning."
+      "unconfirmed": "Couldn't confirm the model change. Check the automation before rerunning.",
+      "unsupported": "Update Orca on this host to retry here."
     },
     "runPage": {
       "edit": "Edit",

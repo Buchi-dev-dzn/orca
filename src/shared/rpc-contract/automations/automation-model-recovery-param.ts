@@ -4,7 +4,7 @@ import { AutomationId } from './automation-params'
 
 export const AutomationRecoverModel = AutomationId.extend({
   runId: requiredString('Missing run id'),
-  botId: requiredString('Missing bot id'),
+  expectedTarget: z.string().regex(/^[a-f0-9]{64}$/),
   model: z.string().min(1).max(512),
   callerSessionId: OptionalString
 })

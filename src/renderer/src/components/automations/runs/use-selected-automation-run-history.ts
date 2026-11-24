@@ -38,6 +38,7 @@ export type SelectedAutomationRunNavigation = {
   automationId: string
   runId?: string | null
   hostId?: string | null
+  ownerKey?: string
 } | null
 
 export type SelectedAutomationRunHistoryOutcome = {
@@ -95,15 +96,25 @@ export function useSelectedAutomationRunHistory(input: SelectedAutomationRunHist
   } | null>(null)
   const selected = input.selected
   const previous = acquired.current
+  const navigationOwner = input.navigation?.ownerKey
+  const previousOwner = previous && capturedAutomationOwnerKey(previous.captured)
   let request = previous
   if (
     selected &&
     (!previous ||
       previous.selected.key !== selected.key ||
-      previous.token !== input.acquisitionToken)
+      previous.token !== input.acquisitionToken ||
+      (navigationOwner &&
+        navigationOwner !== previousOwner &&
+        navigationOwner ===
+          capturedAutomationOwnerKey(
+            capturedAutomationOwner(input.context.capturedOwners, selected.key)
+          )))
   ) {
     const captured = capturedAutomationOwner(input.context.capturedOwners, selected.key)
-    const navigationHost = navigationHostId(input.navigation, selected.automation.id)
+    const navigationHost = navigationOwner
+      ? null
+      : navigationHostId(input.navigation, selected.automation.id)
     const target = captured.owner
       ? getAutomationAuthorityTarget(captured.owner.authority)
       : navigationHost
@@ -143,7 +154,10 @@ export function useSelectedAutomationRunHistory(input: SelectedAutomationRunHist
   })
   const reloadToken = input.reloadToken
   const navigation =
-    input.navigation?.runId && input.navigation.automationId === request?.selected.automation.id
+    request &&
+    input.navigation?.runId &&
+    input.navigation.automationId === request.selected.automation.id &&
+    (!navigationOwner || navigationOwner === capturedAutomationOwnerKey(request.captured))
       ? input.navigation
       : null
   const settled = useRef<{ request: typeof request; reloadToken: number } | null>(null)

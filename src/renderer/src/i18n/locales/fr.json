@@ -24198,7 +24198,6 @@
     },
     "runModelFix": {
       "model": "Modèle",
-      "pickModel": "Choisir un modèle",
       "changed": "Cette automatisation a changé, le modèle n’a donc pas été enregistré. Utilisez Modifier pour le changer.",
       "rerunFailed": "Modèle défini sur {{model}} pour cette automatisation, mais la relance n’a pas démarré.",
       "saved": "Modèle défini sur {{model}} pour cette automatisation.",

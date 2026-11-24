@@ -177,16 +177,18 @@ function isAutomationRunFailureCode(code: unknown): code is AutomationRunFailure
   return typeof code === 'string' && Object.hasOwn(COPY, code)
 }
 
-/** Old records and older hosts omit the code; newer hosts may send unknown codes. Both show `error`. */
 export function automationRunErrorText(
   run: Pick<MobileAutomationRun, 'error' | 'errorCode' | 'errorParams'>
 ): string | null {
   if (run.error === null) {
     return null
   }
-  if (!isAutomationRunFailureCode(run.errorCode)) {
+  if (isAutomationRunFailureCode(run.errorCode)) {
+    return COPY[run.errorCode](run.errorParams) ?? run.error
+  }
+  if (run.errorCode == null) {
     const legacy = readLegacyAutomationModelFailure(run.error)
     return legacy ? modelUnavailableText(legacy.agent, legacy.model) : run.error
   }
-  return COPY[run.errorCode](run.errorParams) ?? run.error
+  return run.error
 }

@@ -1,5 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
+import { useAppStore } from '@/store'
 import type { Bot } from '../../../../../shared/bot-types'
+import { automationModelRecoveryTarget } from '../../../../../shared/automations/history/automation-model-recovery'
+import { ownerKey } from '../../../../../shared/automations/ownership/automation-owner-key'
 import { automationRowHostId } from '../automations-page-navigation'
 import {
   automationActionAvailability,
@@ -41,26 +44,41 @@ export function useAutomationRunModelActions(
       : null
 
   const activeRun =
-    local.pageView === 'run' && selectedRow && selectedAutomationRunPage
-      ? JSON.stringify([selectedRow.key, selectedAutomationRunPage.id])
+    local.pageView === 'run' &&
+    selectedRow &&
+    selectedAutomationRunPage &&
+    availability?.kind === 'owned'
+      ? JSON.stringify([
+          selectedRow.key,
+          ownerKey(availability.owner),
+          selectedAutomationRunPage.id
+        ])
       : null
-  const currentRun = useRef(activeRun)
-  useEffect(() => {
-    currentRun.current = activeRun
+  const currentRunVisit = useRef<object | null>(null)
+  useLayoutEffect(() => {
+    currentRunVisit.current = activeRun ? {} : null
     return () => {
-      currentRun.current = null
+      currentRunVisit.current = null
     }
   }, [activeRun])
 
   const onPickModel = async (model: AutomationRunModelOption): Promise<void> => {
-    if (!selectedRow || !selectedAutomationRunPage || !botId || availability?.kind !== 'owned') {
+    const target = selected?.bot
+    if (
+      !selectedRow ||
+      !selectedAutomationRunPage ||
+      !target ||
+      !bot ||
+      availability?.kind !== 'owned'
+    ) {
       return
     }
+    const runVisit = currentRunVisit.current
     const automationId = selectedRow.automation.id
     const outcome = await recoverOwnedAutomationModel(availability, {
       id: automationId,
       runId: selectedAutomationRunPage.id,
-      botId,
+      expectedTarget: automationModelRecoveryTarget(target, bot),
       model: model.id
     })
     if (outcome.status === 'uncaptured') {
@@ -71,23 +89,38 @@ export function useAutomationRunModelActions(
       if (result.notice.severity === 'owner') {
         destination.reportOwnerAction(selectedRow.key, result.notice)
       } else {
+        destination.invalidateRowHost(selectedRow.key, 'definition')
         showAutomationModelRecoveryResult({ status: 'unconfirmed' }, model.label)
       }
       return
     }
 
     destination.reportOwnerAction(selectedRow.key, null)
-    if (result.value.status !== 'changed' && result.value.status !== 'busy') {
+    if (result.value.status !== 'unsupported' && result.value.status !== 'busy') {
       destination.invalidateRowHost(selectedRow.key, 'definition')
     }
-    showAutomationModelRecoveryResult(result.value, model.label)
-    if (result.value.status === 'queued' && activeRun && currentRun.current === activeRun) {
-      store.setPendingAutomationRunNavigation({
-        automationId,
-        runId: result.value.runId,
-        hostId,
-        origin: local.runPageOrigin
-      })
+    if (result.value.status !== 'queued') {
+      showAutomationModelRecoveryResult(result.value, model.label)
+      return
+    }
+    const navigation = {
+      automationId,
+      runId: result.value.runId,
+      hostId,
+      ownerKey: ownerKey(availability.owner),
+      origin: local.runPageOrigin
+    }
+    showAutomationModelRecoveryResult(result.value, model.label, () => {
+      const state = useAppStore.getState()
+      state.setPendingAutomationRunNavigation({ ...navigation })
+      state.openAutomationsPage()
+    })
+    if (
+      runVisit &&
+      currentRunVisit.current === runVisit &&
+      useAppStore.getState().activeView === 'automations'
+    ) {
+      store.setPendingAutomationRunNavigation(navigation)
     }
   }
 

@@ -23822,7 +23822,6 @@
     },
     "runModelFix": {
       "model": "Model",
-      "pickModel": "Model seçin",
       "changed": "Bu otomasyon değişti, bu yüzden model kaydedilmedi. Değiştirmek için Düzenle'yi kullanın.",
       "rerunFailed": "Bu otomasyonun modeli {{model}} olarak ayarlandı, ancak yeniden çalıştırma başlamadı.",
       "saved": "Bu otomasyonun modeli {{model}} olarak ayarlandı.",

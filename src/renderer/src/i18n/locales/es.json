@@ -24177,7 +24177,6 @@
     },
     "runModelFix": {
       "model": "Modelo",
-      "pickModel": "Elige un modelo",
       "changed": "Esta automatización cambió, así que no se guardó el modelo. Usa Editar para cambiarlo.",
       "rerunFailed": "Modelo establecido en {{model}} para esta automatización, pero la nueva ejecución no se inició.",
       "saved": "Modelo establecido en {{model}} para esta automatización.",

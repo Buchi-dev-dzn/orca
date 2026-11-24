@@ -17,9 +17,11 @@ export function botRunModelFailure(
     return null
   }
   const agent = runBot?.agent
-  const model = failure.detail?.text ?? runBot?.launch?.model
+  const launchModel = runBot?.launch?.model
+  const model = failure.detail?.text ?? launchModel
   return automationRunModelUnavailable({
     ...(agent ? { agent, agentLabel: tuiAgentDisplayName(agent) ?? agent } : {}),
-    ...(model ? { model } : {})
+    model,
+    launchModel
   })
 }

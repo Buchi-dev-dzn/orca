@@ -1,16 +1,13 @@
-import { isDeepStrictEqual } from 'node:util'
 import type { AutomationBotTarget } from '../../../../shared/automations/automation-definition'
-import type {
-  AutomationModelRecoveryInput,
-  AutomationModelRecoveryResult
+import {
+  automationModelRecoveryTarget,
+  type AutomationModelRecoveryInput,
+  type AutomationModelRecoveryResult
 } from '../../../../shared/automations/history/automation-model-recovery'
 import type { AutomationOwnerPrecondition } from '../../../../shared/automations/ownership/automation-owner-precondition'
-import { automationRunModelParam } from '../../../../shared/automations/history/automation-run-failure-copy'
+import { isFailedAutomationRunModel } from '../../../../shared/automations/history/automation-run-failure-copy'
 import { BotLaunchSchema } from '../../../../shared/bots/bot-launch'
-import {
-  resolveBotAutomationRunTarget,
-  type AutomationBotRunTarget
-} from '../../../automations/bot-run-target'
+import { resolveBotAutomationRunTarget } from '../../../automations/bot-run-target'
 import type { AutomationService } from '../../../automations/automation-service'
 import type { RuntimeStore } from '../../construction/runtime-store-contract'
 import type { RuntimeAutomationController } from './runtime-automation-controller'
@@ -21,24 +18,12 @@ type RecoveryStore = Pick<
 > &
   Pick<Parameters<typeof resolveBotAutomationRunTarget>[0], 'getSettings'>
 
-function recoveryTarget(bot: AutomationBotTarget, resolved: AutomationBotRunTarget) {
-  const { agentSetup: _setup, ...delivery } = bot
-  return {
-    delivery,
-    cwd: resolved.cwd,
-    workspaceId: resolved.workspaceId,
-    agent: resolved.bot.agent,
-    options: resolved.bot.launch?.options,
-    permissionMode: resolved.bot.permissionMode
-  }
-}
-
 export async function recoverAutomationModel(
   pending: Set<string>,
   controller: Pick<RuntimeAutomationController, 'assertOwner' | 'show' | 'listRuns'>,
   store: RecoveryStore | null,
   service: Pick<AutomationService, 'runNow'> | null,
-  { id, runId, botId, model }: AutomationModelRecoveryInput,
+  { id, runId, expectedTarget, model }: AutomationModelRecoveryInput,
   expectedOwner?: AutomationOwnerPrecondition
 ): Promise<AutomationModelRecoveryResult> {
   if (pending.has(id)) {
@@ -65,21 +50,24 @@ export async function recoverAutomationModel(
     const target = controller.show(id).bot
     const failed = controller.listRuns(id).find((run) => run.id === runId)
     if (
-      target?.botId !== botId ||
-      target.runsIn !== 'new' ||
+      target?.runsIn !== 'new' ||
       failed?.status !== 'dispatch_failed' ||
       failed.errorCode !== 'agentModelUnavailable' ||
-      failed.errorParams?.model === automationRunModelParam(model)
+      isFailedAutomationRunModel(model, failed.errorParams)
     ) {
       return { status: 'changed' }
     }
     const resolved = resolve(target)
-    if (!resolved.ok || failed.errorParams?.agent !== resolved.bot.agent) {
+    if (
+      !resolved.ok ||
+      failed.errorParams?.agent !== resolved.bot.agent ||
+      resolved.bot.launch?.model === model ||
+      automationModelRecoveryTarget(target, resolved.bot) !== expectedTarget
+    ) {
       return { status: 'changed' }
     }
     const launch = BotLaunchSchema.parse({ ...resolved.bot.launch, model })
     const bot = { ...target, agentSetup: { agent: resolved.bot.agent, launch } }
-    const expected = structuredClone(recoveryTarget(bot, resolved))
     // Keep the read and write synchronous so the other bot settings come from the same record.
     store.updateAutomation(id, { bot, agentId: resolved.bot.agent }, { expectedOwner })
     try {
@@ -96,7 +84,11 @@ export async function recoverAutomationModel(
         return { status: 'saved', rerun: 'skipped' }
       }
       const runTarget = resolve(current)
-      if (!runTarget.ok || !isDeepStrictEqual(expected, recoveryTarget(current, runTarget))) {
+      if (
+        !runTarget.ok ||
+        runTarget.cwd !== resolved.cwd ||
+        automationModelRecoveryTarget(current, runTarget.bot) !== expectedTarget
+      ) {
         return { status: 'saved', rerun: 'skipped' }
       }
       newerModel = runTarget.bot.launch?.model !== model

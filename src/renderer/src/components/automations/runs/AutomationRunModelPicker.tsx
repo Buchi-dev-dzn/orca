@@ -12,7 +12,8 @@ import {
 import { useTranslate } from '@/i18n/use-translate'
 import { agentPickerModels } from '../../../../../shared/agent-launch/picker/agent-launch-picker-catalog'
 import type { AgentPickerEntry } from '../../../../../shared/agent-launch/picker/agent-launch-picker'
-import { automationRunModelParam } from '../../../../../shared/automations/history/automation-run-failure-copy'
+import { isFailedAutomationRunModel } from '../../../../../shared/automations/history/automation-run-failure-copy'
+import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
 import type { Bot, BotAgent } from '../../../../../shared/bot-types'
 import { folderWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 
@@ -53,13 +54,10 @@ function useAutomationRunModelOptions(
   return menu.choices.includes(agent) ? automationRunModelOptions(entries, agent) : null
 }
 
-function isFailedModel(id: string, failedModel?: string): boolean {
-  return failedModel !== undefined && automationRunModelParam(id) === failedModel
-}
-
 export function AutomationRunModelSelect({
   options,
-  failedModel,
+  currentModel,
+  failureParams,
   disabled,
   defaultOpen,
   onPick
@@ -67,23 +65,39 @@ export function AutomationRunModelSelect({
   options: readonly AutomationRunModelOption[]
   /** Fixtures show the list open. */
   defaultOpen?: boolean
-  failedModel?: string
+  currentModel?: string
+  failureParams?: AutomationRun['errorParams']
   disabled: boolean
   onPick: (model: AutomationRunModelOption) => void
 }): React.JSX.Element {
   const t = useTranslate()
   const nameId = useId()
   const valueId = useId()
-  const failedLabel =
-    options.find((option) => isFailedModel(option.id, failedModel))?.label ?? failedModel
+  const currentLabel = options.find((option) => option.id === currentModel)?.label ?? currentModel
+  const models =
+    currentModel && !options.some((option) => option.id === currentModel)
+      ? [{ id: currentModel, label: currentModel }, ...options]
+      : options
+  const historicalLabel =
+    typeof failureParams?.model === 'string' &&
+    !models.some((option) => isFailedAutomationRunModel(option.id, failureParams))
+      ? failureParams.model
+      : null
+  const failedSuffix = (
+    <span className="text-foreground">{t('automations.runModelFix.failed', 'Failed')}</span>
+  )
   return (
     <Select
-      value=""
+      value={currentModel ? `model:${currentModel}` : ''}
       disabled={disabled}
       defaultOpen={defaultOpen}
       onValueChange={(next) => {
-        const option = options.find((candidate) => candidate.id === next)
-        if (option && !isFailedModel(next, failedModel)) {
+        const option = options.find((candidate) => `model:${candidate.id}` === next)
+        if (
+          option &&
+          option.id !== currentModel &&
+          !isFailedAutomationRunModel(option.id, failureParams)
+        ) {
           onPick(option)
         }
       }}
@@ -92,7 +106,7 @@ export function AutomationRunModelSelect({
         size="xs"
         variant="destructive"
         aria-labelledby={`${nameId} ${valueId}`}
-        title={failedLabel}
+        title={currentLabel}
         className="max-w-[45%] min-w-0 @max-[33rem]:max-w-none"
       >
         <span id={nameId} className="sr-only">
@@ -100,23 +114,26 @@ export function AutomationRunModelSelect({
         </span>
         <SelectValue
           id={valueId}
-          placeholder={failedLabel ?? t('automations.runModelFix.pickModel', 'Pick a model')}
-        />
+          placeholder={t('automations.runModelFix.defaultModel', 'Default model')}
+        >
+          {currentLabel}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" side="bottom" align="end">
-        {failedModel ? (
-          <SelectItem value={failedModel} disabled>
-            {failedLabel}{' '}
-            <span className="text-foreground">{t('automations.runModelFix.failed', 'Failed')}</span>
+        {historicalLabel ? (
+          <SelectItem value="historical" disabled>
+            {historicalLabel} {failedSuffix}
           </SelectItem>
         ) : null}
-        {options
-          .filter((option) => !isFailedModel(option.id, failedModel))
-          .map((option) => (
-            <SelectItem key={option.id} value={option.id}>
+        {models.map((option) => {
+          const failed = isFailedAutomationRunModel(option.id, failureParams)
+          return (
+            <SelectItem key={option.id} value={`model:${option.id}`} disabled={failed}>
               {option.label}
+              {failed ? <> {failedSuffix}</> : null}
             </SelectItem>
-          ))}
+          )
+        })}
       </SelectContent>
     </Select>
   )
@@ -125,24 +142,30 @@ export function AutomationRunModelSelect({
 export function AutomationRunModelPicker({
   bot,
   agent,
-  failedModel,
+  currentModel,
+  failureParams,
   disabled,
   renderNotice,
   onPick
 }: {
   bot: Pick<Bot, 'hostId' | 'folderWorkspaceId'>
   agent: BotAgent
-  failedModel?: string
+  currentModel?: string
+  failureParams?: AutomationRun['errorParams']
   disabled: boolean
   renderNotice: (picker?: React.ReactNode) => React.JSX.Element
   onPick: (model: AutomationRunModelOption) => void
 }): React.JSX.Element {
   const options = useAutomationRunModelOptions(bot, agent)
   return renderNotice(
-    options?.some((option) => !isFailedModel(option.id, failedModel)) ? (
+    options?.some(
+      (option) =>
+        option.id !== currentModel && !isFailedAutomationRunModel(option.id, failureParams)
+    ) ? (
       <AutomationRunModelSelect
         options={options}
-        failedModel={failedModel}
+        currentModel={currentModel}
+        failureParams={failureParams}
         disabled={disabled}
         onPick={onPick}
       />

@@ -34,16 +34,17 @@ export function automationRunModelFix({
   if (run.errorParams?.agent !== setup.agent) {
     return null
   }
-  const failedModel = run.errorParams?.model
   return {
     agent: setup.agent,
-    failedModel: typeof failedModel === 'string' ? failedModel : undefined
+    currentModel: setup.launch?.model,
+    failureParams: run.errorParams
   }
 }
 
 export function showAutomationModelRecoveryResult(
   result: AutomationModelRecoveryResult,
-  model: string
+  model: string,
+  openRun?: () => void
 ): void {
   switch (result.status) {
     case 'changed':
@@ -56,6 +57,11 @@ export function showAutomationModelRecoveryResult(
       break
     case 'busy':
       toast(translate('automations.runModelFix.busy', 'A model change is already in progress.'))
+      break
+    case 'unsupported':
+      toast.error(
+        translate('automations.runModelFix.unsupported', 'Update Orca on this host to retry here.')
+      )
       break
     case 'unconfirmed':
       toast.error(
@@ -93,7 +99,21 @@ export function showAutomationModelRecoveryResult(
               {
                 model
               }
-            )
+            ),
+        openRun && {
+          duration: Infinity,
+          closeButton: true,
+          action: {
+            label: translate(
+              'auto.components.sidebar.WorktreeCardMeta.openAutomationRun',
+              'Open run'
+            ),
+            onClick: (event) => {
+              event.preventDefault()
+              openRun()
+            }
+          }
+        }
       )
       break
   }

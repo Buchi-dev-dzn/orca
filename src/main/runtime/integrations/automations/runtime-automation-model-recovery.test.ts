@@ -4,7 +4,11 @@ import type {
   AutomationBotTarget
 } from '../../../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../../../shared/automations/history/automation-run'
-import type { AutomationModelRecoveryInput } from '../../../../shared/automations/history/automation-model-recovery'
+import {
+  automationModelRecoveryTarget,
+  type AutomationModelRecoveryInput
+} from '../../../../shared/automations/history/automation-model-recovery'
+import { automationRunModelUnavailable } from '../../../../shared/automations/history/automation-run-failure-copy'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
 import { makeTestBot } from '../../../bots/bot.test-fixture'
 import { recoverAutomationModel } from './runtime-automation-model-recovery'
@@ -12,6 +16,7 @@ import { recoverAutomationModel } from './runtime-automation-model-recovery'
 type RecoveryOptions = {
   run?: Partial<AutomationRun>
   target?: Partial<AutomationBotTarget>
+  destinationBeforeHandler?: AutomationBotTarget['resultsTo']
   input?: Partial<AutomationModelRecoveryInput>
   refuseRerun?: boolean
 }
@@ -83,15 +88,21 @@ function beginRecovery(options: RecoveryOptions = {}) {
   }
   const persisted = Promise.withResolvers<void>()
   const pending = new Set<string>()
+  const bot = makeTestBot({ launch: { model: 'old-model', options: { effort: 'high' } } })
+  const expectedTarget = automationModelRecoveryTarget(automation.bot!, bot)
+  if (options.destinationBeforeHandler) {
+    automation = {
+      ...automation,
+      bot: { ...automation.bot!, resultsTo: options.destinationBeforeHandler }
+    }
+  }
   const recover = () =>
     recoverAutomationModel(
       pending,
       { assertOwner: () => {}, show: () => automation, listRuns: () => [failed] },
       {
         getSettings: () => ({ botsEnabled: true }),
-        getBots: () => [
-          makeTestBot({ launch: { model: 'old-model', options: { effort: 'high' } } })
-        ],
+        getBots: () => [bot],
         getFolderWorkspaces: () => [folder],
         updateAutomation: (_id, { bot, agentId }) =>
           (automation = { ...automation, bot, agentId: agentId ?? automation.agentId }),
@@ -105,7 +116,7 @@ function beginRecovery(options: RecoveryOptions = {}) {
           return { ...failed, id: 'queued', status: 'pending' }
         }
       },
-      { id: 'automation', runId: 'failed', botId: 'bot-1', model: 'replacement', ...options.input }
+      { id: 'automation', runId: 'failed', expectedTarget, model: 'replacement', ...options.input }
     )
 
   return {
@@ -136,11 +147,27 @@ it('preserves an intervening destination edit and skips delivery after saving th
   })
 })
 
+it('rejects a destination edit before the recovery handler reads the automation', async () => {
+  const pending = beginRecovery({ destinationBeforeHandler: { channel: 'sample-channel' } })
+  pending.acceptSave()
+
+  await expect(pending.recovery).resolves.toEqual({ status: 'changed' })
+  expect(pending.target).toEqual({
+    botId: 'bot-1',
+    runsIn: 'new',
+    resultsTo: { channel: 'sample-channel' }
+  })
+})
+
 const invalidRecoveries: (RecoveryOptions & { description: string })[] = [
   { description: 'an unclassified run', run: { errorCode: undefined } },
   { description: 'a completed run', run: { status: 'completed' } },
   { description: 'a chat destination', target: { runsIn: 'chat' } },
-  { description: 'a different bot', input: { botId: 'previous-bot' } },
+  {
+    description: 'the current saved model after a different model failed',
+    run: { errorParams: { agent: 'codex', model: 'previous-model' } },
+    input: { model: 'old-model' }
+  },
   {
     description: 'a different agent',
     run: { errorParams: { agent: 'claude', model: 'old-model' } }
@@ -170,6 +197,24 @@ it('prevents another recovery during an unacknowledged write', async () => {
 
   pending.rejectSave(new Error('Write acknowledgement lost'))
   await expect(pending.recovery).resolves.toEqual({ status: 'unconfirmed' })
+})
+
+it('distinguishes model IDs that have the same bounded history text', async () => {
+  const failedModel = `${'x'.repeat(120)}-failed`
+  const alternative = `${'x'.repeat(120)}-alternative`
+  const run = automationRunModelUnavailable({
+    agent: 'codex',
+    model: failedModel,
+    launchModel: failedModel
+  })
+  const same = beginRecovery({ run, input: { model: failedModel } })
+  const different = beginRecovery({ run, input: { model: alternative } })
+  same.acceptSave()
+  different.acceptSave()
+
+  await expect(same.recovery).resolves.toEqual({ status: 'changed' })
+  await expect(different.recovery).resolves.toEqual({ status: 'queued', runId: 'queued' })
+  expect(different.target?.agentSetup?.launch?.model).toBe(alternative)
 })
 
 it('reports an uncertain queue acknowledgement and retains the saved model', async () => {
