@@ -19,8 +19,9 @@ afterEach(() => {
 
 describe('publishing a chat tab', () => {
   it('keeps the showing when it activates nothing, and renews it when it activates', async () => {
-    const { host } = hostTestState()
-    const write = vi.spyOn(host, 'setSessionTabVisibility').mockResolvedValue()
+    // The store's write, so the host's own options pass-through is part of what is tested.
+    const { store } = hostTestState()
+    const write = vi.spyOn(store, 'setSessionTabVisibility').mockResolvedValue()
 
     await admitStructuredSessionTabPublication(
       { sessionId: SESSION, activate: false },

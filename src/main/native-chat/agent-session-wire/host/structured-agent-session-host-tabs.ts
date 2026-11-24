@@ -122,6 +122,8 @@ export function createStructuredAgentSessionTabSurface(
         background?: boolean
         /** Hide the tab, drop any background hold, and mark the bot chat ended. */
         end?: boolean
+        /** A publish that opens nothing new: a tab already listed keeps its showing. */
+        keepShowing?: boolean
       }
     ): Promise<void> => {
       let actualId: string | null = null
@@ -133,7 +135,8 @@ export function createStructuredAgentSessionTabSurface(
           options?.capture?.(id)
         },
         background: options?.background,
-        end: options?.end
+        end: options?.end,
+        keepShowing: options?.keepShowing
       })
       if (!visible) {
         if (!options?.deferHiddenNotice) {
