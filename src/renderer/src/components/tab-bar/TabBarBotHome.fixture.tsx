@@ -35,7 +35,13 @@ const SIDE_TITLES = [
 ]
 const noop = (): void => {}
 
-function chatTab(id: string, entityId: string, label: string, index: number): Tab {
+function chatTab(
+  id: string,
+  entityId: string,
+  label: string,
+  index: number,
+  color: string | null = null
+): Tab {
   return {
     id,
     entityId,
@@ -46,7 +52,7 @@ function chatTab(id: string, entityId: string, label: string, index: number): Ta
     agentSessionAgent: 'claude',
     label,
     customLabel: null,
-    color: null,
+    color,
     sortOrder: index,
     createdAt: index,
     isPinned: index === 0
@@ -55,14 +61,16 @@ function chatTab(id: string, entityId: string, label: string, index: number): Ta
 
 function BotHomeTabsFixture({
   sideChats,
-  paneHeader = false
+  paneHeader = false,
+  homeColor = null
 }: {
   sideChats: number
   /** Mirrors TabGroupPanel's header: drag handle, quick commands and pane actions share the strip's width. */
   paneHeader?: boolean
+  homeColor?: string | null
 }): React.JSX.Element {
   const tabs = [
-    chatTab('home-tab', bot.chatSessionId!, 'Home', 0),
+    chatTab('home-tab', bot.chatSessionId!, 'Home', 0, homeColor),
     ...Array.from({ length: sideChats }, (_, index) =>
       chatTab(
         `side-${index}`,
@@ -157,4 +165,12 @@ export const homeInPaneHeader = defineFixture({
   store: { workspaceSessionReady: true },
   setup,
   render: () => <BotHomeTabsFixture sideChats={12} paneHeader />
+})
+
+// Home with a tab color: its dot must hide before it would clip in a narrow header.
+export const homeColoredInPaneHeader = defineFixture({
+  width: 620,
+  store: { workspaceSessionReady: true },
+  setup,
+  render: () => <BotHomeTabsFixture sideChats={12} paneHeader homeColor="#e11d48" />
 })
