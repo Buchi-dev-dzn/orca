@@ -21,6 +21,7 @@ import {
 } from '../../shared/agent-session/lifecycle/records/agent-session-turn-record'
 import type { ConnectorFailure } from '../../shared/connectors/connector-cloud-contract'
 import type { ReplyRecoveryChat } from './external-conversation-reply-recovery'
+import { connectorReplyTurnOutcome } from '../../shared/agent-session/journal/journal-connector-reply-turn'
 import { structuredAgentSessionTurnReply } from '../../shared/agent-session/requests/structured-agent-session-turn-reply'
 import { JOURNAL_CONNECTOR_REPLY_PROSE_BYTES } from '../../shared/agent-session/journal/journal-connector-reply'
 import { capAnswer } from '../connector-cloud/connector-snapshot'
@@ -173,7 +174,7 @@ export async function readReplyEvidence(
     cutTurnWords: (cutTurnId: string) => {
       if (!cutWords.has(cutTurnId)) {
         const { prose } = structuredAgentSessionTurnReply(snapshot.items, cutTurnId)
-        cutWords.set(cutTurnId, prose && capAnswer(prose, JOURNAL_CONNECTOR_REPLY_PROSE_BYTES))
+        cutWords.set(cutTurnId, prose)
       }
       return cutWords.get(cutTurnId) ?? ''
     },
@@ -278,8 +279,14 @@ export function rowVerdict(
   // Held for an empty turn's retry that never claimed it (refused, or the app quit first): that
   // turn finished, answered only by any words it wrote before its last tool.
   if (row.emptyRetried && row.cut && view.cutTurnVerdict(row.cut.turnId) === 'success') {
-    const prose = view.cutTurnWords(row.cut.turnId)
-    return prose ? { outcome: 'answered', prose } : { outcome: 'no_answer' }
+    const { outcome, prose } = connectorReplyTurnOutcome({
+      outcome: 'success',
+      prose: view.cutTurnWords(row.cut.turnId),
+      bot: true
+    })
+    return prose
+      ? { outcome, prose: capAnswer(prose, JOURNAL_CONNECTOR_REPLY_PROSE_BYTES) }
+      : { outcome }
   }
   if (row.cut) {
     return settled ? { outcome: 'interrupted' } : null
